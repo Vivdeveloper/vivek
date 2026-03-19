@@ -43,7 +43,7 @@ if (!$slug && !$catSlug && $uri === '/') {
 // Case 2: /slug
 
 // 1. Try to find a blog post with this slug
-$statusFilter = isEditorOrAdmin() ? "" : " AND p.status = 'published'";
+$statusFilter = canEdit() ? "" : " AND p.status = 'published'";
 $postQuery = "SELECT p.id, p.slug, c.slug as cat_slug 
               FROM posts p 
               LEFT JOIN categories c ON p.category_id = c.id 

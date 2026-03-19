@@ -4,6 +4,7 @@ startSecureSession();
 requireEditorOrAdmin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
+    requireEditAccess();
     $action = $_POST['action'] ?? '';
     if ($action === 'upload' && isset($_FILES['file']) && $_FILES['file']['size'] > 0) {
         $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/zip', 'application/x-zip-compressed'];
@@ -54,12 +55,15 @@ require_once __DIR__ . '/includes/header.php';
                 <a href="?view=grid" class="view-btn <?= $viewMode !== 'list' ? 'active' : '' ?>" title="Grid View"><i class="fas fa-th-large"></i></a>
                 <a href="?view=list" class="view-btn <?= $viewMode === 'list' ? 'active' : '' ?>" title="List View"><i class="fas fa-list"></i></a>
             </div>
+            <?php if (canEdit()): ?>
             <button type="button" class="btn btn-primary" onclick="document.getElementById('uploadCollapse').classList.toggle('active')">
                 <i class="fas fa-plus"></i> Upload New
             </button>
+            <?php endif; ?>
         </div>
     </div>
 
+    <?php if (canEdit()): ?>
     <!-- Collapsible Upload Form -->
     <div id="uploadCollapse" class="upload-collapse-container">
         <div class="modern-card upload-card">
@@ -77,6 +81,7 @@ require_once __DIR__ . '/includes/header.php';
             </form>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if (!empty($mediaList)): ?>
         
@@ -117,12 +122,14 @@ require_once __DIR__ . '/includes/header.php';
                             <td>
                                 <div class="row-actions">
                                     <button onclick="copyToClipboard('<?= APP_URL . '/' . $m['filepath'] ?>')" class="action-btn" title="Copy URL"><i class="fas fa-link"></i></button>
+                                    <?php if (canEdit()): ?>
                                     <form action="" method="POST" class="inline-form" onsubmit="return confirm('Permanently delete this file?')">
                                         <?php csrfField(); ?>
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?= $m['id'] ?>">
                                         <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
                                     </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -146,12 +153,14 @@ require_once __DIR__ . '/includes/header.php';
                         <?php endif; ?>
                         <div class="media-card-overlay">
                             <button onclick="copyToClipboard('<?= APP_URL . '/' . $m['filepath'] ?>')" class="overlay-btn"><i class="fas fa-link"></i></button>
+                            <?php if (canEdit()): ?>
                             <form action="" method="POST" class="inline-form" onsubmit="return confirm('Delete this file?')">
                                 <?php csrfField(); ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="id" value="<?= $m['id'] ?>">
                                 <button class="overlay-btn delete"><i class="fas fa-trash"></i></button>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="media-card-footer">
@@ -168,7 +177,9 @@ require_once __DIR__ . '/includes/header.php';
             <div class="empty-icon"><i class="fas fa-images"></i></div>
             <h3>Your library is empty</h3>
             <p>Upload images, documents, or reports to see them here.</p>
+            <?php if (canEdit()): ?>
             <button class="btn btn-primary mt-3" onclick="document.getElementById('uploadCollapse').classList.add('active')">Upload First File</button>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>

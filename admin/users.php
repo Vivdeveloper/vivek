@@ -1,16 +1,17 @@
 <?php
 require_once dirname(__DIR__) . '/includes/functions.php';
 startSecureSession();
-requireAdmin();
+requirePermission('users');
 
 $_currentUser = currentUser();
 
-// Handle Form Submissions (Before any output to avoid headers already sent)
+// Handle Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
+    requireEditAccess();
     $action = $_POST['action'] ?? '';
     $id = intval($_POST['id'] ?? 0);
     
-    // Create New User
+    // Create User (Simplifed for this interface)
     if ($action === 'create_user') {
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
@@ -18,28 +19,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
         $role = $_POST['role'] ?? 'user';
         
         if ($name && $email && $password) {
-            // Check if email already exists
-            $stmt = db()->prepare("SELECT id FROM users WHERE email = ?");
-            $stmt->execute([$email]);
-            if ($stmt->fetch()) {
-                setFlash('error', 'A user with this email already exists.');
+            if (strlen($password) < 6) {
+                setFlash('error', 'Password must be at least 6 characters.');
             } else {
-                $hashed = password_hash($password, PASSWORD_DEFAULT);
-                db()->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)")
-                    ->execute([$name, $email, $hashed, $role]);
-                setFlash('success', 'User created successfully!');
-                redirect(APP_URL . '/admin/users.php');
+                $stmt = db()->prepare("SELECT id FROM users WHERE email = ?");
+                $stmt->execute([$email]);
+                if ($stmt->fetch()) {
+                    setFlash('error', 'Email already registered.');
+                } else {
+                    $hashed = password_hash($password, PASSWORD_DEFAULT);
+                    db()->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)")
+                        ->execute([$name, $email, $hashed, $role]);
+                    setFlash('success', 'User created successfully!');
+                }
             }
         } else {
             setFlash('error', 'All fields are required.');
         }
     }
+    
+    // Update User Info (Basic + Password)
+    if ($action === 'update_user') {
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        
+        if ($name && $email && $id) {
+            // Check if email already exists for OTHER users
+            $stmt = db()->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+            $stmt->execute([$email, $id]);
+            if ($stmt->fetch()) {
+                setFlash('error', 'A user with this email already exists.');
+            } else {
+                // Update basic info
+                db()->prepare("UPDATE users SET name = ?, email = ? WHERE id = ?")
+                    ->execute([$name, $email, $id]);
+                
+                // Update password if provided
+                if ($password) {
+                    if (strlen($password) < 6) {
+                        setFlash('error', 'Password must be at least 6 characters. Basic info updated.');
+                    } else {
+                        $hashed = password_hash($password, PASSWORD_DEFAULT);
+                        db()->prepare("UPDATE users SET password = ? WHERE id = ?")
+                            ->execute([$hashed, $id]);
+                        setFlash('success', 'User info and password updated!');
+                    }
+                } else {
+                    setFlash('success', 'User updated successfully!');
+                }
+            }
+        }
+        redirect(APP_URL . '/admin/users.php');
+    }
+
+    // Handle Bulk Actions
+    $bulkAction = $_POST['action'] ?? '';
+    $ids = $_POST['ids'] ?? [];
+    if ($bulkAction && !empty($ids)) {
+        $validIds = array_map('intval', $ids);
+        // Remove current user from bulk actions to prevent self-lockout
+        $validIds = array_filter($validIds, fn($id) => $id != $_currentUser['id']);
+        
+        if (!empty($validIds)) {
+            $placeholders = implode(',', array_fill(0, count($validIds), '?'));
+            
+            if ($bulkAction === 'bulk_block') {
+                db()->prepare("UPDATE users SET is_blocked = 1 WHERE id IN ($placeholders)")->execute($validIds);
+                setFlash('success', count($validIds) . ' users blocked.');
+            } elseif ($bulkAction === 'bulk_unblock') {
+                db()->prepare("UPDATE users SET is_blocked = 0 WHERE id IN ($placeholders)")->execute($validIds);
+                setFlash('success', count($validIds) . ' users unblocked.');
+            } elseif ($bulkAction === 'bulk_delete') {
+                requireAdmin();
+                db()->prepare("DELETE FROM users WHERE id IN ($placeholders)")->execute($validIds);
+                setFlash('success', count($validIds) . ' users permanently deleted.');
+            }
+        }
+        redirect(APP_URL . '/admin/users.php');
+    }
 
     if ($id) {
         if ($action === 'toggle_block') {
             if ($id != $_currentUser['id']) {
-                db()->prepare("UPDATE users SET is_blocked = NOT is_blocked WHERE id = ?")->execute([$id]);
-                setFlash('success', 'User status updated.');
+                // More robust flip using SQL IF logic
+                db()->prepare("UPDATE users SET is_blocked = IF(is_blocked = 1, 0, 1) WHERE id = ?")->execute([$id]);
+                setFlash('success', 'User status updated successfully.');
             } else {
                 setFlash('error', 'You cannot block your own account.');
             }
@@ -70,175 +135,194 @@ require_once __DIR__ . '/includes/header.php';
 $users = getAllUsers();
 ?>
 
-<div class="users-container admin-card">
-    <div class="admin-card-header" style="justify-content: space-between; align-items: center; display: flex;">
-        <h3><i class="fas fa-users"></i> User Management</h3>
-        <button class="btn btn-primary" onclick="toggleAddUser()"><i class="fas fa-user-plus"></i> Add New User</button>
+<div class="wrap">
+    <div class="admin-page-header">
+        <div class="header-left">
+            <h2>Users</h2>
+            <p class="text-muted">Manage your site users and personnel</p>
+        </div>
+        <?php if (canEdit()): ?>
+        <button class="btn btn-primary" onclick="toggleAddUser()"><i class="fas fa-plus"></i> Add New</button>
+        <?php endif; ?>
     </div>
 
-    <!-- Create User Section (Initially Hidden) -->
-    <div id="add-user-section" style="display: none; padding: 24px; background: #f8faff; border-bottom: 1px solid var(--border-color); border-radius: 4px; margin: 15px;">
-        <h4 style="margin-bottom: 20px; font-weight: 600; color: var(--text-primary); font-size: 16px;">Create New Administrator or Editor</h4>
-        <form action="" method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+    <!-- Create User Section -->
+    <div id="add-user-section" class="admin-card" style="display: none; margin-bottom: 25px;">
+        <div class="admin-card-header">Add New User</div>
+        <form action="" method="POST" style="padding: 20px;">
             <?php csrfField(); ?>
             <input type="hidden" name="action" value="create_user">
-            <div class="form-group">
-                <label>Full Name</label>
-                <input type="text" name="name" class="form-control" required placeholder="Ex: John Doe">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" required placeholder="Ex: John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" required placeholder="john@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" name="password" id="pass-create" required placeholder="Minimum 6 characters" style="padding-right: 32px;">
+                        <i class="fas fa-eye" style="position: absolute; right: 10px; cursor: pointer; color: #646970; font-size: 14px;" onclick="togglePassVisibility('pass-create', this)"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Assigned Permission Tier (Role)</label>
+                    <select name="role">
+                        <option value="editor">Editor (Restricted by permissions)</option>
+                        <option value="admin">Administrator (Full Access)</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="email" class="form-control" required placeholder="john@example.com">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" class="form-control" required placeholder="Minimum 6 characters">
-            </div>
-            <div class="form-group">
-                <label>Role</label>
-                <select name="role" class="form-control">
-                    <option value="user">User</option>
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <div class="form-group" style="display: flex; align-items: flex-end;">
-                <button type="submit" class="btn btn-primary" style="width: 100%; height: 44px; font-weight: 600;">Create User</button>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #f0f0f1; padding-top: 15px;">
+                <button type="button" class="btn btn-outline" onclick="toggleAddUser()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
             </div>
         </form>
     </div>
 
-    <div class="modern-card no-padding overflow-hidden">
-        <table class="modern-table">
-            <thead>
-                <tr>
-                    <th>User Info</th>
-                    <th>Role / Position</th>
-                    <th>Status</th>
-                    <th>Joined on</th>
-                    <th width="120">Manage</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($users as $user): ?>
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-primary), #6366f1); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
-                                <?= strtoupper(substr($user['name'], 0, 1)) ?>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 2px;"><?= h($user['name']) ?></div>
-                                <div style="font-size: 12px; color: var(--text-muted);"><?= h($user['email']) ?></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <form action="" method="POST" class="inline-form">
-                            <?php csrfField(); ?>
-                            <input type="hidden" name="action" value="change_role">
-                            <input type="hidden" name="id" value="<?= $user['id'] ?>">
-                            <select name="role" class="form-control" onchange="this.form.submit()" <?= ($user['id'] == $_currentUser['id']) ? 'disabled' : '' ?> style="height: 36px; padding: 0 10px; font-size: 13px; font-weight: 500; border-radius: 8px; width: 120px; <?= $user['role'] === 'admin' ? 'border-color: #ffd700; background: #fffdf0;' : '' ?>">
-                                <option value="user" <?= $user['role']==='user'?'selected':'' ?>>User</option>
-                                <option value="editor" <?= $user['role']==='editor'?'selected':'' ?>>Editor</option>
-                                <option value="admin" <?= $user['role']==='admin'?'selected':'' ?>>Admin</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td>
-                        <?php if ($user['id'] == $_currentUser['id'] || !$user['is_blocked']): ?>
-                            <span class="status-badge" style="background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f;">Active</span>
-                        <?php else: ?>
-                            <span class="status-badge" style="background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e;">Blocked</span>
-                        <?php endif; ?>
-                    </td>
-                    <td style="color: var(--text-muted); font-size: 13px;">
-                        <small><?= formatDate($user['created_at']) ?></small>
-                    </td>
-                    <td>
-                        <div class="row-actions">
-                            <?php if ($user['id'] != $_currentUser['id']): ?>
-                            <form action="" method="POST" class="inline-form" style="display: inline-block;">
-                                <?php csrfField(); ?>
-                                <input type="hidden" name="action" value="toggle_block">
-                                <input type="hidden" name="id" value="<?= $user['id'] ?>">
-                                <button type="submit" class="action-btn" title="<?= $user['is_blocked'] ? 'Unblock Account' : 'Block Account' ?>" style="color: <?= $user['is_blocked'] ? '#27ae60' : '#f2994a' ?>;">
-                                    <i class="fas fa-<?= $user['is_blocked'] ? 'unlock' : 'user-slash' ?>"></i>
-                                </button>
-                            </form>
-                            
-                            <form action="" method="POST" class="inline-form" onsubmit="return confirm('Permanently delete this user? This cannot be undone.')" style="display: inline-block;">
-                                <?php csrfField(); ?>
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="id" value="<?= $user['id'] ?>">
-                                <button type="submit" class="action-btn trash" title="Delete User"><i class="fas fa-trash-alt"></i></button>
-                            </form>
-                            <?php else: ?>
-                                <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; padding: 4px 10px;">Self Account</span>
-                            <?php endif; ?>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <!-- Filter Tabs (Post Style) -->
+    <div class="filter-tabs-container">
+        <div class="filter-tabs">
+            <?php
+            $counts = [
+                'all' => db()->query("SELECT COUNT(*) FROM users")->fetchColumn(),
+                'admin' => db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn(),
+                'editor' => db()->query("SELECT COUNT(*) FROM users WHERE role = 'editor'")->fetchColumn(),
+                'user' => db()->query("SELECT COUNT(*) FROM users WHERE role = 'user'")->fetchColumn()
+            ];
+            $currentFilter = $_GET['role'] ?? 'all';
+            ?>
+            <a href="?role=all" class="filter-tab <?= $currentFilter === 'all' ? 'active' : '' ?>">All <span class="badge"><?= $counts['all'] ?></span></a>
+            <a href="?role=admin" class="filter-tab <?= $currentFilter === 'admin' ? 'active' : '' ?>">Administrators <span class="badge"><?= $counts['admin'] ?></span></a>
+            <a href="?role=editor" class="filter-tab <?= $currentFilter === 'editor' ? 'active' : '' ?>">Editors <span class="badge"><?= $counts['editor'] ?></span></a>
+            <a href="?role=user" class="filter-tab <?= $currentFilter === 'user' ? 'active' : '' ?>">Users <span class="badge"><?= $counts['user'] ?></span></a>
+        </div>
     </div>
+
+    <form action="" method="POST" id="bulk-form">
+        <?php csrfField(); ?>
+        <div class="bulk-actions-container">
+            <select name="action">
+                <option value="">Bulk Actions</option>
+                <option value="bulk_block">Block Selected</option>
+                <option value="bulk_unblock">Unblock Selected</option>
+                <option value="bulk_delete">Delete Permanently</option>
+            </select>
+            <button type="submit" class="btn btn-outline btn-sm">Apply</button>
+        </div>
+
+        <div class="modern-card no-padding overflow-hidden">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="check-all"></th>
+                        <th>Name</th>
+                        <th style="width: 150px;">Role</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 120px;">Date Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $filteredUsers = $users;
+                    if ($currentFilter !== 'all') {
+                        $filteredUsers = array_filter($users, fn($u) => $u['role'] === $currentFilter);
+                    }
+                    foreach ($filteredUsers as $user): 
+                    ?>
+                    <tr>
+                        <td><input type="checkbox" name="ids[]" value="<?= $user['id'] ?>" class="item-check" <?= $user['id'] == $_currentUser['id'] ? 'disabled' : '' ?>></td>
+                        <td>
+                            <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                <div class="user-avatar-text"><?= strtoupper(substr($user['name'], 0, 1)) ?></div>
+                                <div class="title-cell">
+                                    <strong><?= h($user['name']) ?></strong>
+                                    <small><?= h($user['email']) ?></small>
+                                    <div class="row-actions">
+                                        <a href="user-edit.php?id=<?= $user['id'] ?>" class="edit"><?= canEdit() ? 'Edit Comprehensive Details' : 'View Details' ?></a> 
+                                        <?php if (canEdit() && $user['id'] != $_currentUser['id']): ?>
+                                        | <a href="javascript:void(0)" onclick="if(confirm('Permanently delete this user?')) submitSingleAction(<?= $user['id'] ?>, 'delete')" class="trash">Delete</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-role-badge role-<?= h($user['role']) ?>">
+                                <i class="fas <?= ($user['role'] === 'admin') ? 'fa-user-shield' : (($user['role'] === 'editor') ? 'fa-user-edit' : 'fa-user') ?>" style="margin-right: 5px;"></i>
+                                <?= ($user['role'] === 'admin') ? 'Administrator' : (($user['role'] === 'editor') ? 'Editor' : 'Subscriber') ?>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-<?= $user['is_blocked'] ? 'trash' : 'published' ?>">
+                                <?= $user['is_blocked'] ? 'DISABLED' : 'ACTIVE' ?>
+                            </span>
+                        </td>
+                        <td>
+                            <small class="text-muted"><?= formatDate($user['created_at']) ?></small>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </form>
+    <form action="" method="POST" id="single-action-form" style="display:none;">
+        <?php csrfField(); ?>
+        <input type="hidden" name="id" id="single-action-id">
+        <input type="hidden" name="action" id="single-action-type">
+        <input type="hidden" name="role" id="single-action-val">
+    </form>
 </div>
 
 <script>
+function submitSingleAction(id, action, val = '') {
+    document.getElementById('single-action-id').value = id;
+    document.getElementById('single-action-type').value = action;
+    document.getElementById('single-action-val').value = val;
+    document.getElementById('single-action-form').submit();
+}
+
+function togglePassVisibility(inputId, icon) {
+    const field = document.getElementById(inputId);
+    if (field.type === "password") {
+        field.type = "text";
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        field.type = "password";
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
 function toggleAddUser() {
     const section = document.getElementById('add-user-section');
     section.style.display = section.style.display === 'none' ? 'block' : 'none';
-    if (section.style.display === 'block') {
-        section.scrollIntoView({ behavior: 'smooth' });
-    }
 }
+function toggleEditUser(id) {
+    const el = document.getElementById('edit-user-' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+document.getElementById('check-all') && document.getElementById('check-all').addEventListener('change', function() {
+    const checks = document.querySelectorAll('.item-check:not(:disabled)');
+    checks.forEach(c => c.checked = this.checked);
+});
 </script>
 
 <style>
-.users-container { margin: 20px 0; }
-.status-badge {
-    padding: 4px 12px;
-    border-radius: 100px;
-    font-size: 12px;
-    font-weight: 600;
-}
-.row-actions { display: flex; gap: 8px; justify-content: flex-end; }
-.action-btn {
-    width: 36px; height: 36px;
-    border: 1px solid var(--border-color);
-    background: white;
-    border-radius: 8px;
+.user-avatar-text {
+    width: 32px; height: 32px; border-radius: 4px; border: 1px solid #ccd0d4;
+    background: #f0f0f1; color: #2c3338;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: var(--text-primary);
+    font-weight: 700; font-size: 14px; margin-top: 2px;
 }
-.action-btn:hover { background: var(--bg-tertiary); border-color: var(--text-muted); }
-.action-btn.trash:hover { color: #f5222d; border-color: #ffa39e; background: #fff1f0; }
-
-/* Custom Form Styles for the creation form */
-.form-group label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.form-control {
-    width: 100%;
-    height: 44px;
-    padding: 10px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    font-family: inherit;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-}
-.form-control:focus { border-color: var(--accent-primary); }
+.title-cell strong { font-size: 14px; color: #2271b1; display: block; margin-bottom: 2px; }
+.title-cell small { color: #646970; font-size: 12px; }
+.modern-table td { vertical-align: top; padding: 10px; }
 </style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

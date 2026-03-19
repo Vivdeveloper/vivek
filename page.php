@@ -9,7 +9,7 @@ $id = intval($_GET['id'] ?? 0);
 
 if ($id) {
     $page = getPageById($id);
-    if ($page && $page['status'] !== 'published' && !isEditorOrAdmin()) {
+    if ($page && $page['status'] !== 'published' && !canEdit()) {
         $page = null;
     }
 } elseif ($slug) {

@@ -7,6 +7,30 @@ require_once dirname(dirname(__DIR__)) . '/includes/functions.php';
 startSecureSession();
 requireEditorOrAdmin();
 $_currentUser = currentUser();
+
+// Fetch Permissions for Sidebar logic
+$stmt = db()->prepare("SELECT permissions FROM users WHERE id = ?");
+$stmt->execute([$_currentUser['id']]);
+$u_data = $stmt->fetch();
+$active_permissions = json_decode($u_data['permissions'] ?? '[]', true);
+if (empty($active_permissions)) {
+    if ($_currentUser['role'] === 'editor') {
+        // Editors default to ONLY the Dashboard for maximum security
+        $active_permissions = ['dashboard'];
+    } else {
+        // Administrators default to ALL master modules if no specific perms exist
+        $active_permissions = array_column(array_filter(getAdminMenu(), fn($m) => isset($m['key'])), 'key');
+    }
+}
+
+/**
+ * Check if the current user has permission for a specific module
+ */
+function hasPermission($key) {
+    global $_currentUser, $active_permissions;
+    if ($_currentUser['role'] === 'admin') return true; // Admins ALWAYS have access
+    return in_array($key, $active_permissions);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,95 +55,74 @@ $_currentUser = currentUser();
             <button id="sidebarToggle" class="action-btn" style="color:#fff; padding: 0 5px; font-size: 18px;"><i class="fas fa-bars"></i></button>
             <a href="<?= APP_URL?>/" target="_blank" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.9;"><i class="fas fa-home"></i> <?= APP_NAME?></a>
         </div>
-        <div class="topbar-right">
-            <span>Howdy, <?= h($_currentUser['name'])?></span>
-            <a href="<?= APP_URL?>/logout.php" style="margin-left:10px;">Log Out</a>
+        <div class="topbar-right" style="display: flex; align-items: center; gap: 15px;">
+            <a href="<?= APP_URL ?>/admin/profile.php" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.9; display: flex; align-items: center; gap: 8px;">
+                <div style="width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;"><?= strtoupper(substr($_currentUser['name'], 0, 1)) ?></div>
+                Howdy, <?= h($_currentUser['name'])?>
+            </a>
+            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2);"></div>
+            <a href="<?= APP_URL?>/logout.php" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.7;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </header>
+
+    <div class="admin-sidebar-overlay" id="sidebarOverlay"></div>
 
     <div style="display:flex; width:100%;">
         <!-- WordPress Sidebar -->
         <aside class="admin-sidebar" id="adminSidebar">
+            <div class="sidebar-mobile-header" style="display:none; justify-content: flex-end; padding: 10px;">
+                <button id="sidebarClose" class="action-btn" style="color:#fff;"><i class="fas fa-times"></i></button>
+            </div>
             <nav class="sidebar-nav">
-                <a href="<?= APP_URL?>/admin/" class="sidebar-link <?=($pageTitle ?? '') === 'Dashboard' ? 'active' : ''?>">
-                    <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-                </a>
-                
-                <div class="sidebar-separator" style="height:10px;"></div>
-                
-                <!-- Posts Group -->
-                <div class="sidebar-group <?= (strpos($pageTitle ?? '', 'Post') !== false || ($pageTitle ?? '') === 'Categories') ? 'active' : '' ?>">
-                    <a href="<?= APP_URL?>/admin/posts.php" class="sidebar-link">
-                        <i class="fas fa-thumbtack"></i><span>Posts</span>
-                    </a>
-                    <div class="sidebar-submenu">
-                        <a href="<?= APP_URL?>/admin/posts.php" class="submenu-link <?= ($pageTitle ?? '') === 'All Posts' ? 'active' : '' ?>">All Posts</a>
-                        <a href="<?= APP_URL?>/admin/post-create.php" class="submenu-link <?= ($pageTitle ?? '') === 'Create Post' ? 'active' : '' ?>">Add New</a>
-                        <a href="<?= APP_URL?>/admin/categories.php" class="submenu-link <?= ($pageTitle ?? '') === 'Categories' ? 'active' : '' ?>">Categories</a>
-                    </div>
-                </div>
+                <?php 
+                $admin_menu_master = getAdminMenu();
+                foreach($admin_menu_master as $m): 
+                    // Handle Separators
+                    if ($m['type'] === 'separator') {
+                        $style = isset($m['border']) ? 'height:10px; border-top: 1px solid rgba(255,255,255,0.05); margin: 5px 0;' : 'height:10px;';
+                        echo '<div class="sidebar-separator" style="'.$style.'"></div>';
+                        continue;
+                    }
 
-                <a href="<?= APP_URL?>/admin/media.php" class="sidebar-link <?= strpos($pageTitle ?? '', 'Media') !== false ? 'active' : ''?>">
-                    <i class="fas fa-camera"></i><span>Media</span>
-                </a>
+                    // Strict Visibility Check
+                    if (!hasPermission($m['key'])) continue;
+                    if (isset($m['is_admin_only']) && $m['is_admin_only'] && $_currentUser['role'] !== 'admin') continue;
 
-                <!-- Pages Group -->
-                <div class="sidebar-group <?= (strpos($pageTitle ?? '', 'Page') !== false) ? 'active' : '' ?>">
-                    <a href="<?= APP_URL?>/admin/pages.php" class="sidebar-link">
-                        <i class="fas fa-file-alt"></i><span>Pages</span>
+                    // Handle Simple Links
+                    if ($m['type'] === 'link'): 
+                        $isActive = (($_SERVER['REQUEST_URI'] === APP_URL . $m['url']) || (strpos($m['url'], '/admin/'.strtolower($pageTitle ?? '')) !== false) || (strpos(strtolower($pageTitle ?? ''), strtolower($m['label'])) !== false)) ? 'active' : '';
+                        
+                        // Comments Badge Logic
+                        $badgeHtml = '';
+                        if (isset($m['badge']) && $m['badge'] && $m['key'] === 'comments') {
+                            $pendingCommentsCount = 0;
+                            try { $pendingCommentsCount = db()->query("SELECT COUNT(*) FROM comments WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) {}
+                            if ($pendingCommentsCount > 0) $badgeHtml = '<span class="sidebar-badge-count">'.$pendingCommentsCount.'</span>';
+                        }
+                    ?>
+                    <a href="<?= APP_URL . $m['url'] ?>" class="sidebar-link <?= $isActive ?>">
+                        <i class="<?= $m['icon'] ?>"></i><span><?= $m['label'] ?></span>
+                        <?= $badgeHtml ?>
                     </a>
-                    <div class="sidebar-submenu">
-                        <a href="<?= APP_URL?>/admin/pages.php" class="submenu-link <?= ($pageTitle ?? '') === 'All Pages' ? 'active' : '' ?>">All Pages</a>
-                        <a href="<?= APP_URL?>/admin/page-create.php" class="submenu-link <?= ($pageTitle ?? '') === 'Create Page' ? 'active' : '' ?>">Add New</a>
+                    <?php 
+                    // Handle Groups (Submenus)
+                    elseif ($m['type'] === 'group'): 
+                        $isGroupActive = (strpos(strtolower($pageTitle ?? ''), strtolower($m['label'])) !== false || (isset($m['parent_url']) && strpos($_SERVER['REQUEST_URI'], $m['parent_url']) !== false)) ? 'active' : '';
+                    ?>
+                    <div class="sidebar-group <?= $isGroupActive ?>">
+                        <a href="<?= APP_URL . $m['parent_url'] ?>" class="sidebar-link">
+                            <i class="<?= $m['icon'] ?>"></i><span><?= $m['label'] ?></span>
+                        </a>
+                        <div class="sidebar-submenu">
+                            <?php foreach($m['submenu'] as $sub): 
+                                $isSubActive = (strpos($_SERVER['REQUEST_URI'], $sub['url']) !== false || (strtolower($pageTitle ?? '') === strtolower($sub['label']))) ? 'active' : '';
+                            ?>
+                            <a href="<?= APP_URL . $sub['url'] ?>" class="submenu-link <?= $isSubActive ?>"><?= $sub['label'] ?></a>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                </div>
-                
-                <?php
-                $pendingCommentsCount = 0;
-                try { $pendingCommentsCount = db()->query("SELECT COUNT(*) FROM comments WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) {}
-                ?>
-                <a href="<?= APP_URL?>/admin/comments.php" class="sidebar-link <?= strpos($pageTitle ?? '', 'Comment') !== false ? 'active' : ''?>">
-                    <i class="fas fa-comment"></i><span>Comments</span>
-                    <?php if ($pendingCommentsCount > 0): ?>
-                        <span class="sidebar-badge-count"><?= $pendingCommentsCount?></span>
                     <?php endif; ?>
-                </a>
-
-                <div class="sidebar-separator" style="height:10px; border-top: 1px solid rgba(255,255,255,0.05); margin: 5px 0;"></div>
-                
-                <!-- Design Group -->
-                <div class="sidebar-group <?= (strpos($pageTitle ?? '', 'Design') !== false || strpos($pageTitle ?? '', 'Menu') !== false || ($pageTitle ?? '') === 'Theme Settings') ? 'active' : '' ?>">
-                    <a href="<?= APP_URL?>/admin/theme-settings.php" class="sidebar-link">
-                        <i class="fas fa-paint-brush"></i><span>Design</span>
-                    </a>
-                    <div class="sidebar-submenu">
-                        <a href="<?= APP_URL?>/admin/theme-settings.php" class="submenu-link <?= ($pageTitle ?? '') === 'Design Settings' ? 'active' : '' ?>">Customizer</a>
-                        <a href="<?= APP_URL?>/admin/menus.php" class="submenu-link <?= ($pageTitle ?? '') === 'Menus' ? 'active' : '' ?>">Menus</a>
-                        <a href="<?= APP_URL?>/admin/theme-settings.php?tab=header" class="submenu-link">Header Design</a>
-                        <a href="<?= APP_URL?>/admin/theme-settings.php?tab=footer" class="submenu-link">Footer Design</a>
-                    </div>
-                </div>
-
-                 <?php if ($_currentUser['role'] === 'admin'): ?>
-                <a href="<?= APP_URL?>/admin/users.php" class="sidebar-link <?= strpos($pageTitle ?? '', 'User') !== false ? 'active' : ''?>">
-                    <i class="fas fa-users"></i><span>Users</span>
-                </a>
-                <?php endif; ?>
-                
-                <div class="sidebar-separator" style="height:10px;"></div>
-
-                <a href="<?= APP_URL?>/admin/cpt-manager.php" class="sidebar-link <?= strpos($pageTitle ?? '', 'Custom Post') !== false ? 'active' : ''?>">
-                    <i class="fas fa-tools"></i><span>CPT Manager</span>
-                </a>
-                <a href="<?= APP_URL?>/admin/custom-fields.php" class="sidebar-link <?= strpos($pageTitle ?? '', 'Custom Field') !== false ? 'active' : ''?>">
-                    <i class="fas fa-database"></i><span>Custom Fields</span>
-                </a>
-
-                <div class="sidebar-separator" style="height:10px;"></div>
-
-                <a href="<?= APP_URL?>/admin/theme-settings.php?tab=permalinks" class="sidebar-link <?= ($pageTitle ?? '') === 'Settings' ? 'active' : '' ?>">
-                    <i class="fas fa-cog"></i><span>Settings</span>
-                </a>
+                <?php endforeach; ?>
             </nav>
         </aside>
 

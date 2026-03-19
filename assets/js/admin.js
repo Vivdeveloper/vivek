@@ -6,27 +6,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Sidebar Toggle ---
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebarClose = document.getElementById('sidebarClose');
+    const overlay = document.getElementById('sidebarOverlay');
     const sidebar = document.getElementById('adminSidebar');
 
-    if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
-        });
-    }
-    if (sidebarClose && sidebar) {
-        sidebarClose.addEventListener('click', function() {
-            sidebar.classList.remove('active');
-        });
+    function toggleMenu() {
+        if (!sidebar) return;
+        const isActive = sidebar.classList.toggle('active');
+        if (overlay) overlay.style.display = isActive ? 'block' : 'none';
     }
 
-    // Close sidebar on outside click (mobile)
-    document.addEventListener('click', function(e) {
-        if (sidebar && sidebar.classList.contains('active') && 
-            !sidebar.contains(e.target) && 
-            sidebarToggle && !sidebarToggle.contains(e.target)) {
-            sidebar.classList.remove('active');
-        }
-    });
+    if (sidebarToggle) sidebarToggle.addEventListener('click', toggleMenu);
+    if (sidebarClose) sidebarClose.addEventListener('click', toggleMenu);
+    if (overlay) overlay.addEventListener('click', toggleMenu);
 
     // --- Auto-remove flash messages ---
     setTimeout(function() {

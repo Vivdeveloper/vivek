@@ -19,7 +19,7 @@ $id = intval($_GET['p'] ?? 0);
 if ($id) {
     $post = getPostById($id);
     // Extra security: if not admin, must be published
-    if ($post && $post['status'] !== 'published' && !isEditorOrAdmin()) {
+    if ($post && $post['status'] !== 'published' && !canEdit()) {
         $post = null;
     }
 } elseif ($slug) {

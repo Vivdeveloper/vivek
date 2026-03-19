@@ -4,6 +4,7 @@ startSecureSession();
 requireEditorOrAdmin();
 
 $postType = $_GET['type'] ?? 'post';
+requirePermission('ptype_' . $postType);
 $cptName = 'Post';
 if ($postType !== 'post') {
     $cptDetails = db()->prepare("SELECT name FROM custom_post_types WHERE slug = ?");

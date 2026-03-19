@@ -77,7 +77,6 @@ $activeTab = $_GET['tab'] ?? 'header';
                         <div class="filter-tab <?= ($activeTab === 'header') ? 'active' : '' ?>" data-target="header">Header</div>
                         <div class="filter-tab <?= ($activeTab === 'footer') ? 'active' : '' ?>" data-target="footer">Footer</div>
                         <div class="filter-tab <?= ($activeTab === 'homepage') ? 'active' : '' ?>" data-target="homepage">Homepage</div>
-                        <div class="filter-tab <?= ($activeTab === 'customcode') ? 'active' : '' ?>" data-target="customcode">Custom Code</div>
                     </div>
                 </div>
 
@@ -194,36 +193,6 @@ $activeTab = $_GET['tab'] ?? 'header';
                             </div>
                         </div>
                     </div>
-
-                    <!-- CUSTOM CODE TAB -->
-                    <div id="tab-customcode" class="tab-content <?= $activeTab === 'customcode' ? 'active' : '' ?>">
-                        <div class="settings-group">
-                            <h3><i class="fas fa-brackets-curly"></i> Advanced Code Injection</h3>
-                            
-                            <div class="form-row">
-                                <div class="form-col-12" style="margin-top:10px;">
-                                    <div class="form-group">
-                                        <label>Header Scripts (&lt;/head&gt;)</label>
-                                        <input type="hidden" name="settings[header_scripts]" id="header_scripts_field" value="<?= h($settings['header_scripts']) ?>">
-                                        <div id="header_scripts_editor" style="border:1px solid #ddd; border-radius:4px; min-height: 200px;"><?= h($settings['header_scripts']) ?></div>
-                                    </div>
-                                </div>
-                                <div class="form-col-12" style="margin-top:20px;">
-                                    <div class="form-group">
-                                        <label>Footer Scripts (&lt;/body&gt;)</label>
-                                        <input type="hidden" name="settings[footer_scripts]" id="footer_scripts_field" value="<?= h($settings['footer_scripts']) ?>">
-                                        <div id="footer_scripts_editor" style="border:1px solid #ddd; border-radius:4px; min-height: 200px;"><?= h($settings['footer_scripts']) ?></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-group" style="margin-top:20px;">
-                                <label>Custom CSS (Applied globally across all pages)</label>
-                                <input type="hidden" name="settings[custom_css]" id="global_css_field" value="<?= h($settings['custom_css']) ?>">
-                                <div id="global_css_editor" style="border:1px solid #ddd; border-radius:4px; min-height: 200px;"><?= h($settings['custom_css']) ?></div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -252,8 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupAceEditor("footer_html_editor", "footer_html_field", "html");
     setupAceEditor("footer_css_editor", "footer_css_field", "css");
     setupAceEditor("global_css_editor", "global_css_field", "css");
-    setupAceEditor("header_scripts_editor", "header_scripts_field", "javascript");
-    setupAceEditor("footer_scripts_editor", "footer_scripts_field", "javascript");
     
     // Resize observers for tabs
     document.querySelectorAll('#design-tabs .filter-tab').forEach(btn => {

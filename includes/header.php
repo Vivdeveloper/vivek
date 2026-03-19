@@ -37,22 +37,22 @@ $_currentUser = currentUser();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/style.css">
     
-    <!-- Custom CSS from Admin -->
+    <!-- Global CSS Overrides from Admin -->
     <?php $globalCss = getSetting('custom_css'); if($globalCss): ?>
     <style><?= $globalCss ?></style>
     <?php endif; ?>
 
-    <!-- Page Specific CSS -->
+    <!-- Header Scripts from Admin (Global & Page Specific) -->
+    <?php $headerCode = getSetting('custom_code_header'); if($headerCode) echo $headerCode; ?>
+    <?php $headerScripts = getSetting('header_scripts'); if($headerScripts) echo $headerScripts; ?>
     <?php if (isset($page['custom_css']) && !empty($page['custom_css'])): ?>
     <style><?= $page['custom_css'] ?></style>
     <?php endif; ?>
-
-    <!-- Header Scripts from Admin -->
-    <?php $headerScripts = getSetting('header_scripts'); if($headerScripts): ?>
-    <?= $headerScripts ?>
-    <?php endif; ?>
 </head>
 <body>
+    <!-- Body Start Scripts from Admin -->
+    <?php $bodyCode = getSetting('custom_code_body'); if($bodyCode) echo $bodyCode; ?>
+
     <!-- Flash Messages -->
     <?php displayFlash(); ?>
 

@@ -6,8 +6,67 @@
 require_once __DIR__ . '/../config/database.php';
 
 // ============================================
-// 🔒 AUTHENTICATION FUNCTIONS
+// 🔒 AUTHENTICATION & ACCESS FUNCTIONS
 // ============================================
+
+/**
+ * Returns a globally synced Admin Sidebar Master Menu
+ * Used for both generating the Sidebar and the Permission UI
+ */
+function getAdminMenu() {
+    $menu = [
+        ['type' => 'link', 'key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'fas fa-tachometer-alt', 'url' => '/admin/'],
+        ['type' => 'separator'],
+    ];
+
+    // Dynamic Post Types Injection based on Database
+    // We treat 'post' as a special reserved type for the main blog
+    $post_types = db()->query("SELECT * FROM custom_post_types ORDER BY name ASC")->fetchAll();
+    
+    // Always include the standard 'post' type if it exists in the core logic
+    // Usually the 'post' type is the first one
+    $menu[] = ['type' => 'group', 'key' => 'ptype_post', 'label' => 'Blog Posts', 'icon' => 'fas fa-thumbtack', 'parent_url' => '/admin/posts.php', 'submenu' => [
+        ['label' => 'All Posts', 'url' => '/admin/posts.php'],
+        ['label' => 'Add New', 'url' => '/admin/post-create.php'],
+        ['label' => 'Categories', 'url' => '/admin/categories.php']
+    ]];
+
+    foreach ($post_types as $pt) {
+        if ($pt['slug'] === 'post') continue; // Avoid duplication
+        
+        $menu[] = ['type' => 'group', 'key' => 'ptype_' . $pt['slug'], 'label' => h($pt['name']), 'icon' => h($pt['icon'] ?: 'fas fa-thumbtack'), 'parent_url' => '/admin/posts.php?type=' . h($pt['slug']), 'submenu' => [
+            ['label' => 'All ' . h($pt['name']), 'url' => '/admin/posts.php?type=' . h($pt['slug'])],
+            ['label' => 'Add New', 'url' => '/admin/post-create.php?type=' . h($pt['slug'])]
+        ]];
+    }
+
+    $menu = array_merge($menu, [
+        ['type' => 'link', 'key' => 'media', 'label' => 'Media', 'icon' => 'fas fa-camera', 'url' => '/admin/media.php'],
+        ['type' => 'group', 'key' => 'pages', 'label' => 'Pages', 'icon' => 'fas fa-file-alt', 'parent_url' => '/admin/pages.php', 'submenu' => [
+            ['label' => 'All Pages', 'url' => '/admin/pages.php'],
+            ['label' => 'Add New', 'url' => '/admin/page-create.php']
+        ]],
+        ['type' => 'link', 'key' => 'comments', 'label' => 'Comments', 'icon' => 'fas fa-comment', 'url' => '/admin/comments.php', 'badge' => true],
+        ['type' => 'separator', 'border' => true],
+        ['type' => 'group', 'key' => 'design', 'label' => 'Design', 'icon' => 'fas fa-paint-brush', 'parent_url' => '/admin/theme-settings.php', 'submenu' => [
+            ['label' => 'Customizer', 'url' => '/admin/theme-settings.php'],
+            ['label' => 'Menus', 'url' => '/admin/menus.php'],
+            ['label' => 'Header Design', 'url' => '/admin/theme-settings.php?tab=header'],
+            ['label' => 'Footer Design', 'url' => '/admin/theme-settings.php?tab=footer']
+        ]],
+        ['type' => 'link', 'key' => 'floating_cta', 'label' => 'Floating CTA', 'icon' => 'fas fa-comments', 'url' => '/admin/cta-buttons.php'],
+        ['type' => 'link', 'key' => 'custom_code', 'label' => 'Custom Code', 'icon' => 'fas fa-code', 'url' => '/admin/custom-code.php'],
+        ['type' => 'link', 'key' => 'users', 'label' => 'Users', 'icon' => 'fas fa-users', 'url' => '/admin/users.php', 'is_admin_only' => true],
+        ['type' => 'separator'],
+        ['type' => 'link', 'key' => 'cpt_manager', 'label' => 'CPT Manager', 'icon' => 'fas fa-tools', 'url' => '/admin/cpt-manager.php'],
+        ['type' => 'link', 'key' => 'custom_fields', 'label' => 'Custom Fields', 'icon' => 'fas fa-database', 'url' => '/admin/custom-fields.php'],
+        ['type' => 'separator'],
+        ['type' => 'link', 'key' => 'settings', 'label' => 'Settings', 'icon' => 'fas fa-cog', 'url' => '/admin/theme-settings.php?tab=permalinks'],
+        ['type' => 'link', 'key' => 'import_export', 'label' => 'Import/Export', 'icon' => 'fas fa-exchange-alt', 'url' => '/admin/import-export.php', 'is_admin_only' => true]
+    ]);
+
+    return $menu;
+}
 
 function startSecureSession() {
     if (session_status() === PHP_SESSION_NONE) {
@@ -20,22 +79,67 @@ function isLoggedIn() {
     return isset($_SESSION['user_id']);
 }
 
-function isAdmin() {
-    return isLoggedIn() && $_SESSION['user_role'] === 'admin';
+// Fresh checks are moved below to avoid duplication and use DB verification
+
+// isEditorOrAdmin is superseded by canEdit() and hasAccess()
+
+/**
+ * Enhanced authorization: Check if user is either Admin OR has specific permission
+ */
+function hasAccess($key) {
+    if (!isLoggedIn()) return false;
+    if (isAdmin()) return true; // Administrator always has access
+    
+    // Fetch fresh permissions from DB 
+    $stmt = db()->prepare("SELECT permissions FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $perms = json_decode($stmt->fetchColumn() ?? '[]', true);
+    
+    // If no specific perms set, default to none for security (admins are handled above)
+    return in_array($key, $perms);
 }
 
-function isEditorOrAdmin() {
-    return isLoggedIn() && in_array($_SESSION['user_role'], ['admin', 'editor']);
+function requirePermission($key) {
+    if (!hasAccess($key)) {
+        setFlash('error', 'Access denied. You do not have permission for this module.');
+        redirect(APP_URL . '/admin/');
+    }
+}
+
+function isAdmin() {
+    if (!isLoggedIn()) return false;
+    $stmt = db()->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $role = $stmt->fetchColumn();
+    return $role === 'admin';
+}
+
+function canEdit() {
+    if (!isLoggedIn()) return false;
+    
+    // Fetch fresh role from DB to avoid staleness
+    $stmt = db()->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $role = $stmt->fetchColumn();
+    
+    return in_array($role, ['admin', 'editor']);
+}
+
+function requireEditAccess() {
+    if (!canEdit()) {
+        setFlash('error', 'Access denied. Editorial privileges required.');
+        header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? (APP_URL . '/admin/')));
+        exit;
+    }
 }
 
 function currentUser() {
     if (!isLoggedIn()) return null;
-    return [
-        'id' => $_SESSION['user_id'],
-        'name' => $_SESSION['user_name'],
-        'email' => $_SESSION['user_email'],
-        'role' => $_SESSION['user_role']
-    ];
+    
+    // Fetch fresh user data from DB to avoid staleness (e.g. role changes)
+    $stmt = db()->prepare("SELECT id, name, email, role, is_blocked, permissions FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 function requireLogin() {
@@ -55,7 +159,7 @@ function requireAdmin() {
 
 function requireEditorOrAdmin() {
     requireLogin();
-    if (!isEditorOrAdmin()) {
+    if (!canEdit()) {
         setFlash('error', 'Access denied.');
         redirect(APP_URL . '/login.php');
     }
@@ -308,7 +412,7 @@ function getAllPosts($limit = 50) {
 }
 
 function getPostBySlug($slug) {
-    $canSeeDrafts = isEditorOrAdmin();
+    $canSeeDrafts = canEdit();
     $statusFilter = $canSeeDrafts ? "" : " AND p.status = 'published'";
     
     $stmt = db()->prepare("
@@ -509,7 +613,7 @@ function countUsers() {
 
 // --- PAGES ---
 function getPageBySlug($slug) {
-    $canSeeDrafts = isEditorOrAdmin();
+    $canSeeDrafts = canEdit();
     $statusFilter = $canSeeDrafts ? "" : " AND status = 'published'";
     
     $stmt = db()->prepare("SELECT * FROM pages WHERE slug = ? " . $statusFilter);
@@ -621,4 +725,141 @@ function renderFooter() {
     } else {
         require __DIR__ . '/partials/footer-default.php';
     }
+}
+/**
+ * Centrally manages Floating CTA Buttons output
+ */
+function renderFloatingCTA() {
+    if (getSetting('cta_enabled', '0') !== '1') return;
+
+    // Load Settings
+    $design_mobile = getSetting('cta_design_mobile', 'simple');
+    $design_desktop = getSetting('cta_design_desktop', 'pill');
+    $global_visibility = getSetting('cta_visibility', 'mobile');
+    
+    // Load Call Settings
+    $show_call = getSetting('cta_show_call', '1') === '1';
+    $phone = getSetting('cta_phone', '');
+    $text_call = getSetting('cta_text_call', 'Call Now');
+    $bg_call = getSetting('cta_bg_call', '#2271b1');
+    $vis_call = getSetting('cta_visibility_call', $global_visibility);
+
+    // Load WA Settings
+    $show_wa = getSetting('cta_show_whatsapp', '1') === '1';
+    $whatsapp = getSetting('cta_whatsapp', '');
+    $text_wa = getSetting('cta_text_whatsapp', 'WhatsApp');
+    $bg_wa = getSetting('cta_bg_whatsapp', '#25d366');
+    $vis_wa = getSetting('cta_visibility_wa', $global_visibility);
+
+    // Return if nothing to show
+    if ((!$show_call || !$phone) && (!$show_wa || !$whatsapp)) return;
+
+    ?>
+    <style>
+        .cta-container { position: fixed; bottom: 0; left: 0; width: 100%; z-index: 99999; transition: all 0.3s ease; }
+        .cta-btn { 
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            text-decoration: none; color: #fff; font-weight: 700; font-size: 15px; 
+            transition: all 0.3s ease; height: 56px; flex: 1; border: none;
+        }
+        .cta-btn i { font-size: 18px; }
+
+        /* Mobile Layouts */
+        @media (max-width: 768px) {
+            .cta-btn.hide-mobile { display: none !important; }
+            .cta-desktop-wrapper { display: none !important; }
+            
+            .cta-mobile-style-simple { display: flex; width: 100%; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
+            .cta-mobile-style-simple .call { background: <?=$bg_call?>; }
+            .cta-mobile-style-simple .wa { background: <?=$bg_wa?>; }
+
+            .cta-mobile-style-pill { display: flex; gap: 12px; padding: 15px; background: transparent; }
+            .cta-mobile-style-pill .cta-btn { border-radius: 100px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+            .cta-mobile-style-pill .call { background: <?=$bg_call?>; }
+            .cta-mobile-style-pill .wa { background: <?=$bg_wa?>; }
+
+            .cta-mobile-style-gradient { display: flex; width: 100%; background: linear-gradient(to right, <?=$bg_call?>, <?=$bg_wa?>); box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
+            .cta-mobile-style-gradient .cta-btn { background: transparent; }
+            .cta-mobile-style-gradient .divider { width: 1px; height: 30px; background: rgba(255,255,255,0.2); align-self: center; }
+        }
+
+        /* Desktop Layouts */
+        @media (min-width: 769px) {
+            .cta-btn.hide-desktop { display: none !important; }
+            .cta-mobile-wrapper { display: none !important; }
+            
+            /* Simple (Full Bottom Bar) on Desktop */
+            .cta-desktop-style-simple { 
+                display: flex; position: fixed; bottom: 0; left: 0; width: 100%; 
+                box-shadow: 0 -5px 25px rgba(0,0,0,0.15); z-index: 99999;
+            }
+            .cta-desktop-style-simple .cta-btn { height: 60px; font-size: 16px; flex: 1; border-radius: 0; }
+            .cta-desktop-style-simple .call { background: <?=$bg_call?>; }
+            .cta-desktop-style-simple .wa { background: <?=$bg_wa?>; }
+
+            /* Modern Pill (Floating Actions) on Desktop */
+            .cta-desktop-style-pill { 
+                display: flex; flex-direction: column; gap: 15px; 
+                position: fixed; right: 40px; bottom: 40px; width: auto; 
+            }
+            .cta-desktop-style-pill .cta-btn { width: 60px; height: 60px; border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.15); flex: none; }
+            .cta-desktop-style-pill .call { background: <?=$bg_call?>; }
+            .cta-desktop-style-pill .wa { background: <?=$bg_wa?>; }
+
+            /* Gradient Bar (Centered Pill) on Desktop */
+            .cta-desktop-style-gradient { 
+                display: flex; position: fixed; bottom: 25px; left: 50%; width: 450px;
+                transform: translateX(-50%); border-radius: 50px; overflow: hidden;
+                box-shadow: 0 15px 45px rgba(0,0,0,0.2); 
+                background: linear-gradient(to right, <?=$bg_call?>, <?=$bg_wa?>);
+            }
+            .cta-desktop-style-gradient .cta-btn { background: transparent; height: 56px; border-radius: 0; flex:1; }
+            .cta-desktop-style-gradient .divider { width: 1px; height: 30px; background: rgba(255,255,255,0.1); align-self: center; }
+
+            /* Desktop Hover Labels */
+            .cta-btn { position: relative; overflow: visible; }
+            .cta-btn span { 
+                position: absolute; bottom: calc(100% + 15px); left: 50%; transform: translateX(-50%) translateY(10px);
+                background: #333; color: #fff; padding: 7px 15px; border-radius: 6px; font-size: 13px;
+                white-space: nowrap; opacity: 0; visibility: hidden; transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-weight: 500; pointer-events: none;
+            }
+            .cta-desktop-style-pill .cta-btn span { right: calc(100% + 15px); left: auto; top: 50%; transform: translateY(-50%) translateX(10px); bottom: auto; }
+            .cta-btn:hover span { opacity: 1; transform: translateX(-50%) translateY(0); visibility: visible; }
+            .cta-desktop-style-pill .cta-btn:hover span { transform: translateY(-50%) translateX(0); }
+        }
+    </style>
+
+    <div class="cta-container">
+        <!-- Mobile Wrapper -->
+        <div class="cta-mobile-wrapper cta-mobile-style-<?=$design_mobile?>">
+            <?php if ($show_call && $phone): ?>
+            <a href="tel:<?=$phone?>" class="cta-btn call <?=($vis_call==='desktop')?'hide-mobile':''?>">
+                <i class="fas fa-phone-alt"></i> <span><?=$text_call?></span>
+            </a>
+            <?php endif; ?>
+            <?php if ($design_mobile==='gradient' && $show_call && $show_wa && $phone && $whatsapp): ?><div class="divider"></div><?php endif; ?>
+            <?php if ($show_wa && $whatsapp): ?>
+            <a href="https://wa.me/<?=preg_replace('/[^0-9]/','',$whatsapp)?>" target="_blank" class="cta-btn wa <?=($vis_wa==='desktop')?'hide-mobile':''?>">
+                <i class="fab fa-whatsapp"></i> <span><?=$text_wa?></span>
+            </a>
+            <?php endif; ?>
+        </div>
+
+        <!-- Desktop Wrapper -->
+        <div class="cta-desktop-wrapper cta-desktop-style-<?=$design_desktop?>">
+            <?php if ($show_call && $phone): ?>
+            <a href="tel:<?=$phone?>" class="cta-btn call <?=($vis_call==='mobile')?'hide-desktop':''?>">
+                <i class="fas fa-phone-alt"></i> <span><?=$text_call?></span>
+            </a>
+            <?php endif; ?>
+            <?php if ($design_desktop==='gradient' && $show_call && $show_wa && $phone && $whatsapp): ?><div class="divider"></div><?php endif; ?>
+            <?php if ($show_wa && $whatsapp): ?>
+            <a href="https://wa.me/<?=preg_replace('/[^0-9]/','',$whatsapp)?>" target="_blank" class="cta-btn wa <?=($vis_wa==='mobile')?'hide-desktop':''?>">
+                <i class="fab fa-whatsapp"></i> <span><?=$text_wa?></span>
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
 }
