@@ -106,20 +106,6 @@ body.login-page-v2 { background: #ffffff !important; display: block !important; 
                     </div>
                     
                     <button type="submit" class="btn-login-v2">Login</button>
-
-                    <div class="divider-v2">
-                        <span>or continue with</span>
-                    </div>
-
-                    <div class="social-login-group">
-                        <div class="social-btn"><i class="fab fa-google"></i></div>
-                        <div class="social-btn"><i class="fab fa-apple"></i></div>
-                        <div class="social-btn"><i class="fab fa-facebook-f"></i></div>
-                    </div>
-
-                    <div class="auth-foot-v2">
-                        Not a member? <a href="<?= APP_URL ?>/register.php">Register now</a>
-                    </div>
                 </form>
             </div>
         </div>
