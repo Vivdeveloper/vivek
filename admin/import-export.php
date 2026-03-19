@@ -139,7 +139,7 @@ require_once __DIR__ . '/includes/header.php';
                             $count = db()->query("SELECT COUNT(*) FROM `$table`")->fetchColumn();
                         ?>
                         <tr class="framework-row">
-                            <td style="padding-left: 20px;"><input type="checkbox" name="entities[]" value="<?= $table ?>" class="item-chk" <?= in_array($table, ['settings','posts','pages','media','categories','custom_fields'])?'checked':'' ?>></td>
+                            <td style="padding-left: 20px;"><input type="checkbox" name="entities[]" value="<?= $table ?>" class="item-chk" <?= in_array($table, ['settings','posts','pages','media','categories','custom_fields','menus','menu_items','comments'])?'checked':'' ?>></td>
                             <td><div class="title-cell"><strong><?= h($table) ?></strong><small>Physical database table</small></div></td>
                             <td><span class="status-badge" style="background:#f6f7f7; color:#50575e; border-color:#dcdcde;">System Core</span></td>
                             <td><small><?= $count ?> records</small></td>

@@ -51,17 +51,21 @@ function hasPermission($key) {
 
     <!-- WordPress style Topbar -->
     <header class="admin-topbar">
-        <div class="topbar-left" style="display: flex; align-items: center; gap: 15px;">
+        <div class="topbar-left" style="display: flex; align-items: center; gap: 12px;">
             <button id="sidebarToggle" class="action-btn" style="color:#fff; padding: 0 5px; font-size: 18px;"><i class="fas fa-bars"></i></button>
-            <a href="<?= APP_URL?>/" target="_blank" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.9;"><i class="fas fa-home"></i> <?= APP_NAME?></a>
+            <a href="<?= APP_URL?>/" target="_blank" style="color:#fff; text-decoration:none; font-size:14px; font-weight:700; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-cube" style="font-size: 16px; color: #72aee6;"></i> <span class="topbar-hide-mobile"><?= APP_NAME?></span>
+            </a>
         </div>
         <div class="topbar-right" style="display: flex; align-items: center; gap: 15px;">
             <a href="<?= APP_URL ?>/admin/profile.php" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.9; display: flex; align-items: center; gap: 8px;">
-                <div style="width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;"><?= strtoupper(substr($_currentUser['name'], 0, 1)) ?></div>
-                Howdy, <?= h($_currentUser['name'])?>
+                <div class="topbar-avatar" style="width: 20px; height: 20px; border-radius: 4px; background: rgba(255,255,255,0.15); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;"><?= strtoupper(substr($_currentUser['name'], 0, 1)) ?></div>
+                <span class="topbar-hide-mobile">Howdy, <?= h($_currentUser['name'])?></span>
             </a>
-            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2);"></div>
-            <a href="<?= APP_URL?>/logout.php" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.7;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+            <div class="topbar-divider" style="width: 1px; height: 16px; background: rgba(255,255,255,0.2);"></div>
+            <a href="<?= APP_URL?>/logout.php" style="color:#fff; text-decoration:none; font-size:13px; font-weight:600; opacity: 0.7; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-sign-out-alt"></i> <span class="topbar-hide-mobile">Log Out</span>
+            </a>
         </div>
     </header>
 

@@ -666,18 +666,13 @@ function updateSetting($key, $value) {
 function getMenuItems($locationOrId = 'primary') {
     try {
         if (is_numeric($locationOrId)) {
-            $stmt = db()->prepare("SELECT * FROM menu_items WHERE menu_id = ? ORDER BY order_index ASC");
+            $stmt = db()->prepare("SELECT structure FROM menus WHERE id = ?");
         } else {
-            $stmt = db()->prepare("
-                SELECT mi.* 
-                FROM menu_items mi 
-                JOIN menus m ON mi.menu_id = m.id 
-                WHERE m.location = ? 
-                ORDER BY mi.order_index ASC
-            ");
+            $stmt = db()->prepare("SELECT structure FROM menus WHERE location = ?");
         }
         $stmt->execute([$locationOrId]);
-        return $stmt->fetchAll();
+        $json = $stmt->fetchColumn();
+        return $json ? json_decode($json, true) : [];
     } catch (PDOException $e) {
         return [];
     }
