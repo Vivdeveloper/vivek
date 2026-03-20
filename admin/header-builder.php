@@ -1,7 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/functions.php';
 startSecureSession();
-requireEditorOrAdmin();
+requireAdmin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     $settingsToUpdate = $_POST['settings'] ?? [];

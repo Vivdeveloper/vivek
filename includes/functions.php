@@ -28,7 +28,8 @@ function getAdminMenu() {
     $menu[] = ['type' => 'group', 'key' => 'ptype_post', 'label' => 'Blog Posts', 'icon' => 'fas fa-thumbtack', 'parent_url' => '/admin/posts.php', 'submenu' => [
         ['label' => 'All Posts', 'url' => '/admin/posts.php'],
         ['label' => 'Add New', 'url' => '/admin/post-create.php'],
-        ['label' => 'Categories', 'url' => '/admin/categories.php']
+        ['label' => 'Categories', 'url' => '/admin/categories.php'],
+        ['label' => 'Tags', 'url' => '/admin/tags.php']
     ]];
 
     foreach ($post_types as $pt) {
@@ -48,8 +49,8 @@ function getAdminMenu() {
         ]],
         ['type' => 'link', 'key' => 'comments', 'label' => 'Comments', 'icon' => 'fas fa-comment', 'url' => '/admin/comments.php', 'badge' => true],
         ['type' => 'separator', 'border' => true],
-        ['type' => 'group', 'key' => 'design', 'label' => 'Design', 'icon' => 'fas fa-paint-brush', 'parent_url' => '/admin/theme-settings.php', 'submenu' => [
-            ['label' => 'Customizer', 'url' => '/admin/theme-settings.php'],
+        ['type' => 'group', 'key' => 'design', 'label' => 'Theme Setting', 'icon' => 'fas fa-paint-brush', 'parent_url' => '/admin/theme-settings.php', 'submenu' => [
+            ['label' => 'Theme Setting', 'url' => '/admin/theme-settings.php'],
             ['label' => 'Menus', 'url' => '/admin/menus.php'],
             ['label' => 'Header Design', 'url' => '/admin/theme-settings.php?tab=header'],
             ['label' => 'Footer Design', 'url' => '/admin/theme-settings.php?tab=footer']
@@ -70,6 +71,15 @@ function getAdminMenu() {
 
 function startSecureSession() {
     if (session_status() === PHP_SESSION_NONE) {
+        $secure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+        session_set_cookie_params([
+            'lifetime' => 86400, // 1 day
+            'path' => '/',
+            'domain' => '', 
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
         session_name(SESSION_NAME);
         session_start();
     }
@@ -248,7 +258,15 @@ function pageUrl($slug, $id = null) {
  * e.g. https://yourdomain.com/category/seo-tips
  */
 function categoryUrl($slug) {
-    return APP_URL . '/category/' . $slug;
+    return APP_URL . '/category/' . h($slug);
+}
+
+/**
+ * Generate clean permalink for a tag
+ * e.g. https://yourdomain.com/tag/marketing
+ */
+function tagUrl($slug) {
+    return APP_URL . '/tag/' . h($slug);
 }
 
 /**
@@ -534,6 +552,98 @@ function getCategoryById($id) {
     return $stmt->fetch();
 }
 
+// --- TAGS ---
+function getTags() {
+    return db()->query("SELECT * FROM tags ORDER BY name ASC")->fetchAll();
+}
+
+function getTagsWithCount() {
+    return db()->query("
+        SELECT t.*, COUNT(pt.post_id) as post_count
+        FROM tags t
+        LEFT JOIN post_tags pt ON t.id = pt.tag_id
+        GROUP BY t.id
+        ORDER BY t.name ASC
+    ")->fetchAll();
+}
+
+function getPostTags($postId) {
+    $stmt = db()->prepare("
+        SELECT t.* 
+        FROM tags t
+        JOIN post_tags pt ON t.id = pt.tag_id
+        WHERE pt.post_id = ?
+    ");
+    $stmt->execute([$postId]);
+    return $stmt->fetchAll();
+}
+
+function setPostTags($postId, $tagsInput) {
+    // tagsInput can be an array of IDs or a comma-separated string of names
+    db()->prepare("DELETE FROM post_tags WHERE post_id = ?")->execute([$postId]);
+    
+    if (is_string($tagsInput)) {
+        $tagNames = array_map('trim', explode(',', $tagsInput));
+        foreach ($tagNames as $name) {
+            if (empty($name)) continue;
+            
+            // Get or create tag
+            $slug = slugify($name);
+            $stmt = db()->prepare("SELECT id FROM tags WHERE slug = ?");
+            $stmt->execute([$slug]);
+            $tagId = $stmt->fetchColumn();
+            
+            if (!$tagId) {
+                $stmt = db()->prepare("INSERT INTO tags (name, slug) VALUES (?, ?)");
+                $stmt->execute([$name, $slug]);
+                $tagId = db()->lastInsertId();
+            }
+            
+            db()->prepare("INSERT IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)")->execute([$postId, $tagId]);
+        }
+    } elseif (is_array($tagsInput)) {
+        foreach ($tagsInput as $tagId) {
+            db()->prepare("INSERT IGNORE INTO post_tags (post_id, tag_id) VALUES (?, ?)")->execute([$postId, (int)$tagId]);
+        }
+    }
+}
+
+function getTagBySlug($slug) {
+    $stmt = db()->prepare("SELECT * FROM tags WHERE slug = ?");
+    $stmt->execute([$slug]);
+    return $stmt->fetch();
+}
+
+function countPostsByTag($slug) {
+    $stmt = db()->prepare("
+        SELECT COUNT(DISTINCT p.id) 
+        FROM posts p
+        JOIN post_tags pt ON p.id = pt.post_id
+        JOIN tags t ON pt.tag_id = t.id
+        WHERE t.slug = ? AND p.status = 'published'
+    ");
+    $stmt->execute([$slug]);
+    return $stmt->fetchColumn();
+}
+
+function getPostsByTag($slug, $limit = 9, $offset = 0) {
+    $limit = (int)$limit;
+    $offset = (int)$offset;
+    $stmt = db()->prepare("
+        SELECT p.*, c.name as category_name, c.slug as category_slug, u.name as author_name
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        JOIN post_tags pt ON p.id = pt.post_id
+        JOIN tags t ON pt.tag_id = t.id
+        WHERE t.slug = ? AND p.status = 'published'
+        ORDER BY p.created_at DESC
+        LIMIT $limit OFFSET $offset
+    ");
+    $stmt->execute([$slug]);
+    return $stmt->fetchAll();
+}
+
 // --- COMMENTS ---
 function getCommentsByPost($postId) {
     $stmt = db()->prepare("
@@ -658,6 +768,11 @@ function getSetting($key, $default = '') {
 function updateSetting($key, $value) {
     $stmt = db()->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
     return $stmt->execute([$key, $value, $value]);
+}
+
+// Define APP_NAME dynamically based on database setting
+if (!defined('APP_NAME')) {
+    define('APP_NAME', getSetting('site_title', 'VivFramework'));
 }
 // --- MENUS ---
 /**

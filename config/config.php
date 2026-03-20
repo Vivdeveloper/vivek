@@ -16,7 +16,7 @@ define('DB_CHARSET', 'utf8mb4');
 // ============================================
 // 🌐 APP SETTINGS
 // ============================================
-define('APP_NAME', 'VivFramework');
+// define('APP_NAME', 'VivFramework'); // Now dynamic in includes/functions.php
 define('APP_URL', 'http://localhost:9000'); // Change to your domain: https://yourdomain.com
 define('APP_VERSION', '1.0.0');
 

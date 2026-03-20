@@ -10,6 +10,20 @@ requireAdmin();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     $settingsToSave = $_POST['settings'] ?? [];
 
+    // Handle File Uploads (Logo & Favicon)
+    if (isset($_FILES['logo_upload']) && $_FILES['logo_upload']['size'] > 0) {
+        $up = uploadFile($_FILES['logo_upload']);
+        if (isset($up['filepath'])) {
+            $settingsToSave['site_logo'] = $up['filepath'];
+        }
+    }
+    if (isset($_FILES['favicon_upload']) && $_FILES['favicon_upload']['size'] > 0) {
+        $up = uploadFile($_FILES['favicon_upload']);
+        if (isset($up['filepath'])) {
+            $settingsToSave['site_favicon'] = $up['filepath'];
+        }
+    }
+
     // Checkboxes are not sent via POST when unchecked, so we default them to '0'
     $checkboxes = ['enable_custom_header', 'enable_custom_footer'];
     foreach ($checkboxes as $cb) {
@@ -25,11 +39,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     redirect(APP_URL . '/admin/theme-settings.php' . ($_GET['tab'] ? '?tab='.$_GET['tab'] : ''));
 }
 
-$pageTitle = 'Design Settings';
+$activeTab = $_GET['tab'] ?? 'site';
+$pageTitle = 'Theme Setting';
 require_once __DIR__ . '/includes/header.php';
 
 // Get current values
 $settings = [
+    'site_title' => getSetting('site_title', 'My Awesome Website'),
+    'site_tagline' => getSetting('site_tagline', 'Just another awesome website'),
+    'site_logo' => getSetting('site_logo', ''),
+    'site_favicon' => getSetting('site_favicon', ''),
+    
     'footer_desc' => getSetting('footer_desc', "We're a full-service SEO and web design agency helping businesses dominate search results and grow online. Custom strategies, transparent reporting, real results."),
     'footer_email' => getSetting('footer_email', 'contact@seowebsitedesigner.com'),
     'footer_phone' => getSetting('footer_phone', '+91 123 456 7890'),
@@ -55,17 +75,17 @@ $settings = [
 ];
 $allPagesList = db()->query("SELECT id, title FROM pages ORDER BY title")->fetchAll();
 
-$activeTab = $_GET['tab'] ?? 'header';
+$activeTab = $_GET['tab'] ?? 'site';
 ?>
 
 <div class="row">
     <div class="col-md-12">
-        <form method="POST" class="admin-form">
+        <form method="POST" class="admin-form" enctype="multipart/form-data">
             <?php csrfField(); ?>
             <div class="admin-page-header">
                 <div class="header-left">
-                    <h2>Design & Theme Customizer</h2>
-                    <p class="text-muted">Manage your site's global header, footer, and homepage aesthetics.</p>
+                    <h2>Theme Setting</h2>
+                    <p class="text-muted">Manage your site's identity, global header, footer, and homepage aesthetics.</p>
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save All Changes</button>
             </div>
@@ -74,6 +94,7 @@ $activeTab = $_GET['tab'] ?? 'header';
                 <!-- Internal Tabs Like Screenshot -->
                 <div class="filter-tabs-container" style="padding: 10px 20px 0; background: #f6f7f7; border-bottom: 1px solid #c3c4c7;">
                     <div class="filter-tabs" id="design-tabs">
+                        <div class="filter-tab <?= ($activeTab === 'site') ? 'active' : '' ?>" data-target="site">Site</div>
                         <div class="filter-tab <?= ($activeTab === 'header') ? 'active' : '' ?>" data-target="header">Header</div>
                         <div class="filter-tab <?= ($activeTab === 'footer') ? 'active' : '' ?>" data-target="footer">Footer</div>
                         <div class="filter-tab <?= ($activeTab === 'homepage') ? 'active' : '' ?>" data-target="homepage">Homepage</div>
@@ -81,6 +102,96 @@ $activeTab = $_GET['tab'] ?? 'header';
                 </div>
 
                 <div style="padding: 25px;">
+                    <!-- SITE TAB -->
+                    <div id="tab-site" class="tab-content <?= $activeTab === 'site' ? 'active' : '' ?>">
+                        <div class="settings-group">
+                            <div class="wp-settings-table">
+                                <!-- Row: Site Title -->
+                                <div class="wp-setting-row">
+                                    <div class="wp-label-col">
+                                        <label>Site Title</label>
+                                        <small class="text-muted">Shown in browser tabs and search results.</small>
+                                    </div>
+                                    <div class="wp-input-col">
+                                        <input type="text" name="settings[site_title]" value="<?= h($settings['site_title']) ?>" class="form-control regular-text" placeholder="e.g. My Website">
+                                    </div>
+                                </div>
+
+                                <!-- Row: Site Tagline -->
+                                <div class="wp-setting-row">
+                                    <div class="wp-label-col">
+                                        <label>Tagline</label>
+                                        <small class="text-muted">In a few words, explain what this site is about.</small>
+                                    </div>
+                                    <div class="wp-input-col">
+                                        <input type="text" name="settings[site_tagline]" value="<?= h($settings['site_tagline']) ?>" class="form-control regular-text" placeholder="e.g. Best services in town">
+                                    </div>
+                                </div>
+
+                                <hr class="wp-divider">
+
+                                <!-- Row: Logo -->
+                                <div class="wp-setting-row">
+                                    <div class="wp-label-col">
+                                        <label>Website Logo</label>
+                                        <small class="text-muted">Upload an image to represent your brand.</small>
+                                    </div>
+                                    <div class="wp-input-col">
+                                        <div class="image-setting-preview">
+                                            <div class="preview-box" id="logo-preview-box">
+                                                <?php if ($settings['site_logo']): ?>
+                                                    <img src="<?= APP_URL . '/' . h($settings['site_logo']) ?>" id="logo-img-tag" style="max-height: 80px; max-width: 200px; display: block;">
+                                                <?php else: ?>
+                                                    <div class="placeholder"><i class="fas fa-image"></i> No Logo</div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="control-box">
+                                                <input type="hidden" name="settings[site_logo]" id="site_logo_input" value="<?= h($settings['site_logo']) ?>">
+                                                <button type="button" class="btn btn-outline" onclick="document.getElementById('logo_upload_field').click()">
+                                                    <i class="fas fa-upload"></i> Upload Image
+                                                </button>
+                                                <input type="file" name="logo_upload" id="logo_upload_field" style="display:none;" onchange="previewLocalImage(this, 'logo-img-tag', 'logo-preview-box')">
+                                                <?php if($settings['site_logo']): ?>
+                                                    <button type="button" class="btn btn-outline text-danger" onclick="removeImage('site_logo_input', 'logo-preview-box')"><i class="fas fa-trash"></i></button>
+                                                <?php endif; ?>
+                                                <div style="margin-top: 5px;"><small class="text-muted">Path: <?= h($settings['site_logo'] ?: 'none') ?></small></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Row: FavIcon -->
+                                <div class="wp-setting-row">
+                                    <div class="wp-label-col">
+                                        <label>Fav Icon</label>
+                                        <small class="text-muted">Small icon shown in browser tabs (Recommended: 32x32px).</small>
+                                    </div>
+                                    <div class="wp-input-col">
+                                        <div class="image-setting-preview">
+                                            <div class="preview-box icon-preview" id="favicon-preview-box">
+                                                <?php if ($settings['site_favicon']): ?>
+                                                    <img src="<?= APP_URL . '/' . h($settings['site_favicon']) ?>" id="favicon-img-tag" style="width: 32px; height: 32px; display: block;">
+                                                <?php else: ?>
+                                                    <div class="placeholder"><i class="fas fa-shapes"></i></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="control-box">
+                                                <input type="hidden" name="settings[site_favicon]" id="site_favicon_input" value="<?= h($settings['site_favicon']) ?>">
+                                                <button type="button" class="btn btn-outline" onclick="document.getElementById('favicon_upload_field').click()">
+                                                    <i class="fas fa-upload"></i> Upload Icon
+                                                </button>
+                                                <input type="file" name="favicon_upload" id="favicon_upload_field" style="display:none;" onchange="previewLocalImage(this, 'favicon-img-tag', 'favicon-preview-box')">
+                                                <?php if($settings['site_favicon']): ?>
+                                                    <button type="button" class="btn btn-outline text-danger" onclick="removeImage('site_favicon_input', 'favicon-preview-box')"><i class="fas fa-trash"></i></button>
+                                                <?php endif; ?>
+                                                <div style="margin-top: 5px;"><small class="text-muted">Path: <?= h($settings['site_favicon'] ?: 'none') ?></small></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <!-- HEADER TAB -->
                     <div id="tab-header" class="tab-content <?= $activeTab === 'header' ? 'active' : '' ?>">
                         <div class="settings-group">
@@ -209,6 +320,27 @@ $activeTab = $_GET['tab'] ?? 'header';
 .settings-group h3 { margin: 0 0 10px; font-size: 18px; font-weight: 700; display:flex; align-items:center; gap:10px; color: #1d2327; }
 .settings-group h4 { margin: 20px 0 10px; font-size: 15px; font-weight: 600; }
 .filter-tab { font-size: 13px; font-weight: 600; padding: 12px 20px !important; }
+
+/* WP Style Settings Improvements */
+.wp-settings-table { display: flex; flex-direction: column; gap: 0; }
+.wp-setting-row { display: flex; padding: 20px 0; border-bottom: 1px solid #f0f0f1; align-items: flex-start; }
+.wp-setting-row:last-child { border-bottom: none; }
+.wp-label-col { width: 200px; padding-right: 20px; }
+.wp-label-col label { display: block; font-size: 14px; font-weight: 600; color: #1d2327; margin-bottom: 4px; }
+.wp-label-col small { display: block; font-size: 12px; color: #646970; line-height: 1.4; }
+.wp-input-col { flex: 1; }
+.regular-text { width: 100%; max-width: 400px; padding: 8px 10px !important; }
+.wp-divider { border: 0; border-top: 1px solid #dcdcde; margin: 10px 0; }
+
+.image-setting-preview { display: flex; gap: 20px; align-items: center; }
+.preview-box { width: 120px; height: 120px; background: #f0f0f1; border: 1px solid #c3c4c7; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.preview-box.icon-preview { width: 60px; height: 60px; }
+.preview-box .placeholder { color: #8c8f94; font-size: 24px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 500; }
+.preview-box .placeholder i { font-size: 30px; opacity: 0.3; }
+.control-box { display: flex; flex-direction: column; gap: 8px; }
+.text-danger { color: #d63638 !important; border-color: rgba(214, 54, 56, 0.3) !important; }
+.text-danger:hover { background: #fcf0f1 !important; border-color: #d63638 !important; }
 </style>
 
 <!-- Load Ace Editor for better coding experience -->
@@ -236,6 +368,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+function previewLocalImage(input, imgTagId, boxId) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            let box = document.getElementById(boxId);
+            let img = document.getElementById(imgTagId);
+            if (!img) {
+                box.innerHTML = `<img src="${e.target.result}" id="${imgTagId}" style="max-height: 80px; max-width: 200px; display: block;">`;
+                if (boxId.includes('icon')) {
+                     document.getElementById(imgTagId).style.width = '32px';
+                     document.getElementById(imgTagId).style.height = '32px';
+                }
+            } else {
+                img.src = e.target.result;
+                img.style.display = 'block';
+            }
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function removeImage(inputId, boxId) {
+    document.getElementById(inputId).value = "";
+    document.getElementById(boxId).innerHTML = '<div class="placeholder"><i class="fas fa-image"></i> No Image</div>';
+}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

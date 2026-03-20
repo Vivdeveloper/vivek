@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_name'] = $user['name'];
                         $_SESSION['user_email'] = $user['email'];
                         $_SESSION['user_role'] = $user['role'];
+                        session_regenerate_id(true); // Prevent session fixation
                         regenerateCsrfToken(); // New secure session
                         // Determine if they have any admin access
                         $hasAdminAccess = in_array($user['role'], ['admin', 'editor']);
@@ -157,6 +158,33 @@ require_once __DIR__ . '/includes/header.php';
         text-decoration: none;
     }
 
+    /* Password Toggle Styles */
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 25px;
+        color: #888;
+        cursor: pointer;
+        font-size: 18px;
+        transition: color 0.3s;
+        z-index: 10;
+        user-select: none;
+    }
+
+    .password-toggle-btn:hover {
+        color: #000;
+    }
+
+    .auth-form-v2 .form-group-v2 input[type="password"],
+    .auth-form-v2 .form-group-v2 input[type="text"] {
+        padding-right: 60px; /* Make space for the icon */
+    }
+
     .btn-login-v2 {
         width: 100%;
         margin-top: 30px;
@@ -279,7 +307,12 @@ require_once __DIR__ . '/includes/header.php';
                         <input type="email" name="email" placeholder="Email Address" required autocomplete="email">
                     </div>
                     <div class="form-group-v2">
-                        <input type="password" name="password" placeholder="Password" required>
+                        <div class="password-input-wrapper">
+                            <input type="password" name="password" id="password" placeholder="Password" required>
+                            <span class="password-toggle-btn" id="passwordToggle">
+                                <i class="far fa-eye"></i>
+                            </span>
+                        </div>
                         <a href="#" class="forgot-pass">Forgot Password?</a>
                     </div>
 
@@ -306,6 +339,26 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.getElementById('passwordToggle');
+            const toggleIcon = toggleBtn.querySelector('i');
+
+            toggleBtn.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                }
+            });
+        });
+    </script>
 </body>
 
 <?php

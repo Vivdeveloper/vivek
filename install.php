@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/config/config.php';
+if (!defined('APP_NAME')) define('APP_NAME', 'VivFramework');
 
 $results = [];
 $errors = [];

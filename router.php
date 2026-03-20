@@ -13,14 +13,32 @@ require_once __DIR__ . '/includes/functions.php';
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// If using PHP's built-in server, return false for existing files (like css/js)
-if (php_sapi_name() === 'cli-server' && is_file(__DIR__ . $uri)) {
-    return false;
+// If using PHP's built-in server, return false for existing files (like css/js) or directories with index.php
+if (php_sapi_name() === 'cli-server') {
+    if (is_file(__DIR__ . $uri)) {
+        return false;
+    }
+    if (is_dir(__DIR__ . $uri) && is_file(__DIR__ . $uri . '/index.php')) {
+        return false;
+    }
 }
 
-// Extract slug from URI if not provided via GET (.htaccess)
 $slug = $_GET['slug'] ?? ltrim($uri, '/');
 $catSlug = $_GET['cat'] ?? '';
+
+// Handle Clean Category URLs: /category/some-slug
+if (preg_match('/^category\/(.+)$/', $slug, $matches)) {
+    $_GET['slug'] = $matches[1];
+    require __DIR__ . '/category.php';
+    exit;
+}
+
+// Handle Clean Tag URLs: /tag/some-slug
+if (preg_match('/^tag\/(.+)$/', $slug, $matches)) {
+    $_GET['slug'] = $matches[1];
+    require __DIR__ . '/tag.php';
+    exit;
+}
 
 // Handle sitemap.xml request
 if ($slug === 'sitemap.xml' || $uri === '/sitemap.xml') {
@@ -35,8 +53,10 @@ if ($slug === 'robots.txt' || $uri === '/robots.txt') {
     exit;
 }
 
-if (!$slug && !$catSlug && $uri === '/') {
-    redirect(APP_URL . '/');
+// Serve index.php for root path
+if (!$slug && !$catSlug && ($uri === '/' || $uri === '')) {
+    require __DIR__ . '/index.php';
+    exit;
 }
 
 // Case 1: /category/post-slug or /parent-slug/child-slug
@@ -54,7 +74,7 @@ $foundPost = $postStmt->fetch();
 
 if ($foundPost) {
     $structure = getSetting('permalink_structure', 'post_name');
-    
+
     // Validate requested URL against structure setting
     if ($structure === 'category_post_name') {
         // If we are in category mode, the first part of the URL (cat) must match category slug
@@ -63,12 +83,13 @@ if ($foundPost) {
             require __DIR__ . '/post.php';
             exit;
         }
-    } else {
+    }
+    else {
         // Simple slug mode: cat should be empty OR we are forgiving
         if (!$catSlug) {
-           $_GET['slug'] = $slug;
-           require __DIR__ . '/post.php';
-           exit;
+            $_GET['slug'] = $slug;
+            require __DIR__ . '/post.php';
+            exit;
         }
     }
 }

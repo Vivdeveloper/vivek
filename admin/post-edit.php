@@ -30,10 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     $status = $_POST['status'] ?? 'draft';
     $allowComments = isset($_POST['allow_comments']) ? 1 : 0;
     
-    // SEO & CSS
+    // SEO
     $metaTitle = trim($_POST['meta_title'] ?? '');
     $metaDescription = trim($_POST['meta_description'] ?? '');
-    $customCss = $_POST['custom_css'] ?? '';
+    $focusKeyword = trim($_POST['focus_keyword'] ?? '');
     
     $featuredImage = $post['featured_image'];
     if (isset($_FILES['featured_image']) && $_FILES['featured_image']['size'] > 0) {
@@ -42,9 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     }
 
     if ($title) {
-        $stmt = db()->prepare("UPDATE posts SET title=?, slug=?, content=?, featured_image=?, category_id=?, status=?, allow_comments=?, meta_title=?, meta_description=?, custom_css=? WHERE id=?");
-        $stmt->execute([$title, $slug, $content, $featuredImage, $categoryId, $status, $allowComments, $metaTitle, $metaDescription, $customCss, $id]);
+        $stmt = db()->prepare("UPDATE posts SET title=?, slug=?, content=?, featured_image=?, category_id=?, status=?, allow_comments=?, meta_title=?, meta_description=?, focus_keyword=? WHERE id=?");
+        $stmt->execute([$title, $slug, $content, $featuredImage, $categoryId, $status, $allowComments, $metaTitle, $metaDescription, $focusKeyword, $id]);
         
+        // Save Tags
+        if (isset($_POST['tags'])) {
+            setPostTags($id, $_POST['tags']);
+        }
+
         if (!empty($_POST['custom_fields'])) {
             foreach ($_POST['custom_fields'] as $cfId => $value) {
                 $cfStmt = db()->prepare("INSERT INTO custom_field_values (post_id, field_id, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
@@ -60,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
 $pageTitle = "Edit {$cptName}";
 require_once __DIR__ . '/includes/header.php';
 $categories = getCategories();
+$currentTags = implode(', ', array_column(getPostTags($id), 'name'));
 ?>
 <style>
     .editor-container { position: relative; margin-bottom: 20px; }
@@ -129,6 +135,69 @@ $categories = getCategories();
 
                     <input type="hidden" id="content" name="content" value="<?= h($post['content']) ?>">
                 </div>
+
+                <!-- SEO ANALYSIS TOOL (RANK MATH STYLE) -->
+                <div class="form-card seo-card" style="margin-top: 25px;">
+                    <div class="seo-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                        <h3 style="margin:0;"><i class="fas fa-search" style="color:#2271b1;"></i> SEO Optimizer (Rank Math Style)</h3>
+                        <div class="seo-score-badge" style="background:var(--bg-secondary); border:1px solid #dce4f5; padding:10px 20px; border-radius:30px; display:flex; align-items:center; gap:10px;">
+                            <div class="score-circle" id="seo-score-circle" style="width:36px; height:36px; border-radius:50%; background:#ff4b4b; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:14px;">0</div>
+                            <span style="font-weight:600; font-size:13px;">SEO Score</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col-12">
+                            <div class="form-group">
+                                <label><i class="fas fa-bullseye" style="color:#2271b1; opacity:0.7;"></i> Focus Keyword</label>
+                                <input type="text" name="focus_keyword" id="focus_keyword" value="<?= h($post['focus_keyword'] ?? '') ?>" class="form-control" placeholder="e.g. SEO services Mumbai" style="padding:12px; font-weight:500;">
+                                <small class="text-muted">Enter the main keyword you want to rank for.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEO Fields Panel -->
+                    <div class="seo-preview-box" style="background:#f6f7f7; padding:20px; border:1px solid #dce4f5; border-radius:8px; margin-bottom:25px;">
+                        <div style="margin-bottom:15px; font-size:11px; text-transform:uppercase; font-weight:700; color:#50575e;">Google Search Preview</div>
+                        <div class="google-preview" style="max-width:600px;">
+                            <div id="preview-title" style="font-size:19px; color:#1a0dab; line-height:1.2; margin-bottom:4px; font-family: arial, sans-serif; cursor:pointer;">
+                                <?= h($post['meta_title'] ?: $post['title']) ?> | <?= APP_NAME ?>
+                            </div>
+                            <div id="preview-url" style="font-size:14px; color:#006621; line-height:1.3; margin-bottom:4px; font-family: arial, sans-serif;">
+                                <?= APP_URL ?>/<?= h($post['slug'] ?: 'your-post-url') ?>
+                            </div>
+                            <div id="preview-desc" style="font-size:14px; color:#545454; line-height:1.4; font-family: arial, sans-serif;">
+                                <?= h($post['meta_description'] ?: 'Please provide a meta description for your post to see how it appears in Google results...') ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col-6">
+                            <div class="form-group">
+                                <label>SEO Title</label>
+                                <input type="text" name="meta_title" id="meta_title" value="<?= h($post['meta_title']) ?>" class="form-control" placeholder="SEO Title...">
+                            </div>
+                        </div>
+                        <div class="form-col-6">
+                            <div class="form-group">
+                                <label>SEO Description</label>
+                                <textarea name="meta_description" id="meta_description" rows="3" class="form-control" placeholder="SEO Description..."><?= h($post['meta_description']) ?></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="margin:25px 0; border:0; border-top:1px solid #eee;">
+
+                    <!-- Optimization Checklist -->
+                    <h4 style="font-size:14px; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-list-check" style="color:#2271b1;"></i> SEO Analysis Checklist
+                    </h4>
+                    <div class="seo-checklist" id="seo-checklist" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <!-- List populated by JS -->
+                    </div>
+                </div>
+
             </div>
 
             <div class="form-col-4">
@@ -143,6 +212,13 @@ $categories = getCategories();
                         </label>
                     </div>
                     <div class="form-group"><label>Featured Image</label><?php if ($post['featured_image']): ?><img src="<?= APP_URL.'/'.h($post['featured_image']) ?>" style="width:100%; border-radius:8px; margin-bottom:10px;"><?php endif; ?><input type="file" name="featured_image"></div>
+                    
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <textarea name="tags" class="form-control" rows="2" placeholder="marketing, seo, web design"><?= h($currentTags) ?></textarea>
+                        <small class="text-muted">Separate tags with commas.</small>
+                    </div>
+
                     <button type="submit" class="btn btn-primary btn-block">Update Post</button>
                 </div>
             </div>
@@ -202,6 +278,123 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.admin-form').addEventListener('submit', () => {
         document.getElementById('content').value = quill.root.innerHTML;
     });
+
+    // --- SEO ANALYSIS LOGIC ---
+    function updateSEOScore() {
+        const title = document.getElementById('title').value;
+        const slug = document.getElementById('slug').value;
+        const focus = document.getElementById('focus_keyword').value.trim().toLowerCase();
+        const metaTitle = document.getElementById('meta_title').value || title;
+        const metaDesc = document.getElementById('meta_description').value;
+        const content = quill.root.innerText;
+        const contentHtml = quill.root.innerHTML;
+
+        let score = 0;
+        let checks = [];
+
+        // 1. Focus Keyword in SEO Title (20 pts)
+        if (focus && metaTitle.toLowerCase().includes(focus)) {
+            score += 20;
+            checks.push({ label: 'Keyword in SEO Title', status: 'pass' });
+        } else {
+            checks.push({ label: 'Keyword in SEO Title', status: focus ? 'fail' : 'pending' });
+        }
+
+        // 2. Focus Keyword in SEO Description (15 pts)
+        if (focus && metaDesc.toLowerCase().includes(focus)) {
+            score += 15;
+            checks.push({ label: 'Keyword in Description', status: 'pass' });
+        } else {
+            checks.push({ label: 'Keyword in Description', status: focus ? 'fail' : 'pending' });
+        }
+
+        // 3. Focus Keyword in URL (10 pts)
+        if (focus && slug.toLowerCase().includes(focus.replace(/\s+/g, '-'))) {
+            score += 10;
+            checks.push({ label: 'Keyword in URL', status: 'pass' });
+        } else {
+            checks.push({ label: 'Keyword in URL', status: focus ? 'fail' : 'pending' });
+        }
+
+        // 4. Content Length (20 pts)
+        const wordCount = content.trim().split(/\s+/).length;
+        if (wordCount > 300) {
+            score += 20;
+            checks.push({ label: 'Word count (>300): ' + wordCount, status: 'pass' });
+        } else {
+            checks.push({ label: 'Word count: ' + wordCount, status: 'fail' });
+        }
+
+        // 5. Keyword Density (15 pts)
+        if (focus && wordCount > 0) {
+            const count = (content.toLowerCase().match(new RegExp(focus, 'g')) || []).length;
+            const density = (count / wordCount) * 100;
+            if (density > 0.5 && density < 3) {
+                score += 15;
+                checks.push({ label: 'Keyword Density: ' + density.toFixed(2) + '%', status: 'pass' });
+            } else {
+                checks.push({ label: 'Keyword Density: ' + density.toFixed(2) + '%', status: 'fail' });
+            }
+        } else {
+            checks.push({ label: 'Keyword Density', status: 'pending' });
+        }
+
+        // 6. Meta Description Length (10 pts)
+        if (metaDesc.length > 50 && metaDesc.length < 160) {
+            score += 10;
+            checks.push({ label: 'Meta Description Length', status: 'pass' });
+        } else {
+            checks.push({ label: 'Meta Description Length', status: 'fail' });
+        }
+
+        // 7. Title Length (10 pts)
+        if (metaTitle.length > 30 && metaTitle.length < 60) {
+            score += 10;
+            checks.push({ label: 'Title Length: Great', status: 'pass' });
+        } else {
+            checks.push({ label: 'Title Length', status: 'fail' });
+        }
+
+        // Update UI
+        const circle = document.getElementById('seo-score-circle');
+        circle.textContent = score;
+        circle.style.background = score > 80 ? '#10b981' : (score > 50 ? '#f59e0b' : '#ff4b4b');
+
+        const checklist = document.getElementById('seo-checklist');
+        checklist.innerHTML = '';
+        checks.forEach(c => {
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '8px';
+            div.style.fontSize = '12px';
+            div.style.padding = '8px';
+            div.style.borderRadius = '4px';
+            div.style.background = c.status === 'pass' ? '#effaf5' : (c.status === 'fail' ? '#fff5f5' : '#f8f9fa');
+
+            const icon = document.createElement('i');
+            icon.className = c.status === 'pass' ? 'fas fa-check-circle' : (c.status === 'fail' ? 'fas fa-times-circle' : 'far fa-circle');
+            icon.style.color = c.status === 'pass' ? '#10b981' : (c.status === 'fail' ? '#ef4444' : '#64748b');
+            
+            div.appendChild(icon);
+            div.appendChild(document.createTextNode(c.label));
+            checklist.appendChild(div);
+        });
+
+        // Update Search Preview
+        document.getElementById('preview-title').textContent = metaTitle + ' | ' + 'VivFramework';
+        document.getElementById('preview-desc').textContent = metaDesc || 'Please provide a meta description for your post to see how it appears in Google results...';
+        document.getElementById('preview-url').textContent = '<?= APP_URL ?>/' + (slug || 'your-post-url');
+    }
+
+    // Trigger analysis on changes
+    ['title', 'slug', 'focus_keyword', 'meta_title', 'meta_description'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateSEOScore);
+    });
+    quill.on('text-change', updateSEOScore);
+    
+    // Initial run
+    updateSEOScore();
 });
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

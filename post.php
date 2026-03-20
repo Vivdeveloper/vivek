@@ -41,6 +41,8 @@ $relatedPosts = getRecentPosts(4);
 $categories = getCategoriesWithCount();
 $comments = getCommentsByPost($post['id']);
 $commentCount = count($comments);
+$postTags = getPostTags($post['id']);
+$allTags = getTagsWithCount();
 
 // Handle comment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
@@ -120,6 +122,16 @@ if (!empty($post['custom_css'])) {
                 <div class="post-detail-content">
                     <?= $post['content'] ?>
                 </div>
+
+                <!-- Post Tags -->
+                <?php if (!empty($postTags)): ?>
+                    <div class="post-tags-list">
+                        <i class="fas fa-tags" style="color: #64748b; margin-right: 8px;"></i>
+                        <?php foreach ($postTags as $tag): ?>
+                            <a href="<?= tagUrl($tag['slug']) ?>" class="post-tag-item">#<?= h($tag['name']) ?></a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Share -->
                 <div class="post-share">
@@ -224,6 +236,20 @@ if (!empty($post['custom_css'])) {
                         <?php endforeach; ?>
                     </ul>
                 </div>
+
+                <!-- Tags Widget -->
+                <?php if (!empty($allTags)): ?>
+                <div class="sidebar-widget">
+                    <h3 class="widget-title">Tag Cloud</h3>
+                    <div class="tag-cloud">
+                        <?php foreach ($allTags as $tag): ?>
+                            <a href="<?= tagUrl($tag['slug']) ?>" class="tag-cloud-item">
+                                <?= h($tag['name']) ?> <small>(<?= $tag['post_count'] ?>) </small>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </aside>
         </div>
     </div>

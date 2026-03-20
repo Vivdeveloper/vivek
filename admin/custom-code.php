@@ -1,11 +1,10 @@
 <?php
 require_once dirname(__DIR__) . '/includes/functions.php';
 startSecureSession();
-requirePermission('custom_code');
+requireAdmin();
 
 // Handle Save
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
-    requireEditAccess();
     updateSetting('custom_code_header', $_POST['header_code'] ?? '');
     updateSetting('custom_code_body', $_POST['body_code'] ?? '');
     updateSetting('custom_code_footer', $_POST['footer_code'] ?? '');

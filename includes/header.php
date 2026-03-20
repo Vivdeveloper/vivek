@@ -10,18 +10,22 @@ $_currentUser = currentUser();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="<?= APP_NAME ?> - Expert SEO, Web Design & Digital Marketing Agency. We build websites that rank and convert.">
-    <meta name="keywords" content="SEO, website design, digital marketing, web development, SEO agency, website designer">
+    <?php 
+        $seoDesc = $page['meta_description'] ?? $post['meta_description'] ?? getSetting('meta_description') ?? (APP_NAME . ' - Expert SEO & Web Design');
+        $seoKeywords = getSetting('meta_keywords') ?? 'SEO, website design, digital marketing, web development';
+    ?>
+    <meta name="description" content="<?= h($seoDesc) ?>">
+    <meta name="keywords" content="<?= h($seoKeywords) ?>">
     <title><?php 
-        $cleanTitle = strip_tags($pageTitle ?? 'Home'); 
-        echo h($cleanTitle); 
+        $seoTitle = $page['meta_title'] ?? $post['meta_title'] ?? strip_tags($pageTitle ?? 'Home');
+        echo h($seoTitle); 
     ?> | <?= APP_NAME ?></title>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?= APP_URL ?>">
-    <meta property="og:title" content="<?= h($cleanTitle) ?> | <?= APP_NAME ?>">
-    <meta property="og:description" content="<?= h(getSetting('footer_desc')) ?>">
+    <meta property="og:title" content="<?= h($seoTitle) ?> | <?= APP_NAME ?>">
+    <meta property="og:description" content="<?= h($seoDesc) ?>">
     <?php if (!empty($page['featured_image'])): ?>
     <meta property="og:image" content="<?= APP_URL . '/' . h($page['featured_image']) ?>">
     <?php endif; ?>
@@ -29,8 +33,8 @@ $_currentUser = currentUser();
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="<?= APP_URL ?>">
-    <meta property="twitter:title" content="<?= h($cleanTitle) ?> | <?= APP_NAME ?>">
-    <meta property="twitter:description" content="<?= h(getSetting('footer_desc')) ?>">
+    <meta property="twitter:title" content="<?= h($seoTitle) ?> | <?= APP_NAME ?>">
+    <meta property="twitter:description" content="<?= h($seoDesc) ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
