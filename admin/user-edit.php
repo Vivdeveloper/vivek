@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     $email = trim($_POST['email'] ?? '');
     $role = $_POST['role'] ?? 'user';
     $password = $_POST['password'] ?? '';
+    $planId = intval($_POST['plan_id'] ?? 0) ?: null;
     
     if ($name && $email && $role) {
         // Check email uniqueness (excluding current)
@@ -34,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
             $permissions = isset($_POST['permissions']) ? json_encode($_POST['permissions']) : json_encode([]);
 
             // Update Base
-            $stmt = db()->prepare("UPDATE users SET name = ?, email = ?, role = ?, permissions = ? WHERE id = ?");
-            $stmt->execute([$name, $email, $role, $permissions, $id]);
+            $stmt = db()->prepare("UPDATE users SET name = ?, email = ?, role = ?, permissions = ?, plan_id = ? WHERE id = ?");
+            $stmt->execute([$name, $email, $role, $permissions, $planId, $id]);
             
             // Update Password if not empty
             if ($password) {
@@ -141,6 +142,24 @@ require_once __DIR__ . '/includes/header.php';
                         <strong>Quick Audit Metadata:</strong><br>
                         Registered on: <?= formatDate($user['created_at']) ?><br>
                         Account ID: #<?= $user['id'] ?>
+                    </div>
+
+                    <!-- Billing Plan Assignment -->
+                    <div style="margin-top: 30px; padding: 20px; background: #fff; border: 1px solid #ccd0d4; border-radius: 8px;">
+                        <h4 style="margin-bottom: 15px; color: #1d2327; font-size: 14px;"><i class="fas fa-credit-card"></i> Assigned Website Plan</h4>
+                        <div class="form-group">
+                            <select name="plan_id" style="width: 100%; padding: 10px; border-radius: 6px;">
+                                <option value="">--- No Plan Assigned ---</option>
+                                <?php 
+                                $allPlans = getPlans();
+                                foreach($allPlans as $plan): ?>
+                                <option value="<?= $plan['id'] ?>" <?= $user['plan_id'] == $plan['id'] ? 'selected' : '' ?>>
+                                    <?= h($plan['name']) ?> (₹<?= number_format($plan['price'], 0) ?>)
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <p style="font-size: 11px; color: #646970; margin-top: 8px;">The user will only be able to view details of their assigned plan.</p>
                     </div>
                 </div>
 

@@ -158,50 +158,6 @@ $settings = [
     </form>
 </div>
 
-<style>
-.element-box { 
-    padding: 15px 10px; 
-    border: 1px solid #eee; 
-    background: #fff; 
-    border-radius: 4px; 
-    cursor: grab; 
-    transition: all 0.2s; 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    text-align: center;
-}
-.element-box i { font-size: 20px; color: #555; }
-.element-box span { font-size: 11px; font-weight: 500; color: #666; }
-.element-box:hover { border-color: var(--primary-color); background: #f8f9ff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-
-.canvas-element {
-    padding: 15px 10px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-bottom: 15px;
-    cursor: move;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-    width: 100%;
-}
-.canvas-element .del-btn { 
-    position: absolute; top: -8px; right: -8px; 
-    background: #ff4d4d; color: #fff; width: 22px; height: 22px; 
-    border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-    font-size: 11px; cursor: pointer; border: 2px solid #fff;
-}
-.canvas-element i.widget-icon { font-size: 20px; color: var(--primary-color); }
-.mode-btn.active { border-bottom: 3px solid var(--primary-color) !important; color: var(--primary-color) !important; }
-</style>
 
 <script>
 const components = document.getElementById('footer-components');

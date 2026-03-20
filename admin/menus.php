@@ -105,7 +105,7 @@ require_once __DIR__ . '/includes/header.php';
 <div class="admin-page" style="max-width: 1200px; margin: 0 auto;">
     <div class="admin-page-header" style="margin-bottom: 20px;">
         <h2 style="font-size: 24px; font-weight: 400; color: #1d2327;">Menus</h2>
-        <div style="display:flex; gap:10px; align-items:center;">
+        <div class="admin-page-header__actions">
             <select onchange="window.location.href='?id=' + this.value" class="form-control" style="width:200px; height: 32px; font-size: 13px; border-radius: 4px; border: 1px solid #c3c4c7;">
                 <option value="0">Select a menu to edit</option>
                 <?php foreach ($menusList as $m): ?>
@@ -284,65 +284,6 @@ require_once __DIR__ . '/includes/header.php';
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Nestable/2012-10-15/jquery.nestable.min.js"></script>
-<style>
-/* Persistent Triangle States */
-details summary i { transition: transform 0.2s; }
-details[open] summary i { transform: rotate(90deg); }
-
-/* Nestable Design System */
-.dd { position: relative; display: block; margin: 0; padding: 0; list-style: none; }
-.dd-list { display: block; position: relative; margin: 0; padding: 0; list-style: none; }
-.dd-list .dd-list { padding-left: 30px; border-left: 1px dashed #e1e4e8; margin-left: 15px; }
-.dd-item { display: block; position: relative; margin: 0; padding: 0; min-height: 20px; margin-bottom: 8px; }
-
-.dd-handle-container {
-    display: flex;
-    align-items: center;
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.01);
-    transition: 0.15s;
-}
-.dd-handle-container:hover { border-color: #2271b1; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.dd-handle {
-    width: 36px;
-    height: 38px;
-    background: #fdfdfd;
-    border-right: 1px solid #f0f0f1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #a0a5aa;
-    cursor: move;
-    font-size: 11px;
-}
-.dd-content {
-    flex: 1;
-    padding: 0 12px;
-    display: flex;
-    align-items: center;
-}
-.item-info { display: flex; flex-direction: column; line-height: 1.2; }
-.item-title { font-weight: 500; font-size: 13.5px; color: #1d2327; }
-.item-url { font-size: 10.5px; color: #a2aab2; font-family: monospace; }
-.remove-btn { background: none; border: none; color: #d63638; cursor: pointer; padding: 5px; opacity: 0.3; transition: 0.2s; }
-.remove-btn:hover { opacity: 1; }
-
-.dd-placeholder { 
-    margin: 5px 0; padding: 0; min-height: 48px; 
-    background: #f0f6fb; border: 1px dashed #2271b1; 
-    border-radius: 4px; 
-}
-
-.dd-dragel { position: absolute; pointer-events: none; z-index: 9999; }
-.dd-dragel > .dd-item .dd-handle-container { 
-    box-shadow: 2px 4px 12px rgba(0,0,0,0.1); 
-    border-color: #2271b1 !important; 
-    background: #fbfcfe;
-}
-</style>
 
 <script>
 function addToMenu(title, url) {

@@ -2,8 +2,10 @@
 require_once __DIR__ . '/includes/functions.php';
 startSecureSession();
 if (isLoggedIn()) {
-    $redirectUrl = canEdit() ? APP_URL . '/admin/' : APP_URL . '/';
-    redirect($redirectUrl);
+    if (canAccessAdminArea()) {
+        redirect(APP_URL . '/admin/');
+    }
+    redirect(APP_URL . '/');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -33,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         
                         setFlash('success', 'Welcome back, ' . $user['name'] . '!');
-                        redirect($hasAdminAccess ? APP_URL . '/admin/' : APP_URL . '/');
+                        redirect(APP_URL . '/admin/');
                     }
                 }
                 else {

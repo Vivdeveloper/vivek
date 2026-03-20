@@ -189,7 +189,7 @@ endif; ?>
         </div>
 
         <div class="modern-card no-padding overflow-hidden">
-            <table class="modern-table">
+            <table class="modern-table admin-list-table post-list-table">
                 <thead>
                     <tr>
                         <th style="width: 40px;"><input type="checkbox" id="check-all"></th>
@@ -198,22 +198,40 @@ endif; ?>
                         <th style="width: 100px;">Author</th>
                         <th style="width: 100px;">Status</th>
                         <th style="width: 110px;">Date</th>
-                        <th width="150" style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
+                    <?php
+                    $editUrl = APP_URL . '/admin/post-edit.php?id=' . (int) $post['id'] . '&type=' . rawurlencode($postType);
+                    $viewUrl = postUrl($post['slug'], $post['category_slug'] ?? null, $post['id']);
+                    ?>
                     <tr>
                         <td><input type="checkbox" name="ids[]" value="<?= $post['id']?>" class="item-check"></td>
-                        <td>
-                            <div class="title-cell">
-                                <strong>
-                                    <?= h($post['title'])?>
-                                </strong>
-                                <small>
-                                    <?= truncate($post['content'], 40)?>
-                                </small>
+                        <td class="column-title admin-list-primary">
+                            <div class="title-cell post-title-cell admin-list-stack">
+                                <strong><a href="<?= h($editUrl) ?>" class="admin-list-primary-link post-row-title-link"><?= h($post['title']) ?></a></strong>
+                                <span class="admin-list-subtext post-row-excerpt"><?= h(truncate($post['content'], 40)) ?></span>
+                                <?php if (canEdit()): ?>
+                                <div class="row-actions admin-list-row-actions posts-row-actions category-row-actions">
+                                    <?php if ($post['status'] === 'trash'): ?>
+                                    <span class="restore"><button type="submit" name="single_restore" value="<?= (int) $post['id'] ?>" class="admin-list-action posts-row-action-btn">Restore</button></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="delete"><button type="submit" name="single_delete" value="<?= (int) $post['id'] ?>" class="admin-list-action admin-list-action--danger posts-row-action-btn posts-row-action-btn--danger"
+                                            onclick="return confirm('Permanently delete this item? This cannot be undone.');">Delete permanently</button></span>
+                                    <?php else: ?>
+                                    <span class="edit"><a href="<?= h($editUrl) ?>">Edit</a></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="view"><a href="<?= h($viewUrl) ?>" target="_blank" rel="noopener">View</a></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="duplicate"><button type="submit" name="single_duplicate" value="<?= (int) $post['id'] ?>" class="admin-list-action posts-row-action-btn">Duplicate</button></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="trash"><button type="submit" name="single_trash" value="<?= (int) $post['id'] ?>" class="admin-list-action admin-list-action--danger posts-row-action-btn posts-row-action-btn--danger"
+                                            onclick="return confirm('Move this item to trash?');">Trash</button></span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </td>
                         <td>
@@ -232,43 +250,13 @@ endif; ?>
                         <td><small>
                                 <?= formatDate($post['created_at'])?>
                             </small></td>
-                        <td style="text-align: right;">
-                            <div class="row-actions">
-                                <a href="<?= postUrl($post['slug'], $post['category_slug'] ?? null, $post['id'])?>"
-                                    class="action-btn" target="_blank" title="View"><i
-                                        class="fas fa-external-link-alt"></i></a>
-                                <?php if (canEdit()): ?>
-                                <?php if ($post['status'] === 'trash'): ?>
-                                <button type="submit" name="single_restore" value="<?= $post['id']?>"
-                                    class="action-btn restore" title="Restore to Draft"><i
-                                        class="fas fa-undo"></i></button>
-                                <button type="submit" name="single_delete" value="<?= $post['id']?>"
-                                    class="action-btn delete" title="Delete Permanently"
-                                    onclick="return confirm('PERMANENTLY DELETE this post? This cannot be undone.')"><i
-                                        class="fas fa-trash-alt"></i></button>
-                                <?php
-            else: ?>
-                                <a href="<?= APP_URL?>/admin/post-edit.php?id=<?= $post['id']?>&type=<?= h($postType)?>"
-                                    class="action-btn edit" title="Edit"><i class="fas fa-pen"></i></a>
-                                <button type="submit" name="single_duplicate" value="<?= $post['id']?>"
-                                    class="action-btn duplicate" title="Duplicate"><i class="fas fa-copy"></i></button>
-                                <button type="submit" name="single_trash" value="<?= $post['id']?>"
-                                    class="action-btn trash" title="Move to Trash"
-                                    onclick="return confirm('Move this item to Trash?')"><i
-                                        class="fas fa-trash"></i></button>
-                                <?php
-            endif; ?>
-                                <?php
-        endif; ?>
-                            </div>
-                        </td>
                     </tr>
                     <?php
     endforeach; ?>
                     <?php
 else: ?>
                     <tr>
-                        <td colspan="7">
+                        <td colspan="6">
                             <div class="empty-row-state">
                                 <i class="fas fa-newspaper"></i>
                                 <p>No posts found in this category.</p>

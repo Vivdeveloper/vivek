@@ -87,7 +87,7 @@ $all_cpts = db()->query("SELECT slug, name FROM custom_post_types")->fetchAll(PD
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<div class="wrap" style="max-width: 1400px; margin: 0 auto; padding-top: 20px;">
+<div class="wrap wrap--wide">
     
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
         <div>
@@ -187,10 +187,5 @@ document.getElementById('selectAll').addEventListener('change', function() {
 });
 </script>
 
-<style>
-.framework-row:hover td { background: #fbfcfe !important; }
-.cpt-row td { background: #fafbfc; }
-.active-framework-nav { border-bottom: 2px solid #2271b1; padding-bottom: 5px; }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

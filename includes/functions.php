@@ -16,6 +16,7 @@ require_once __DIR__ . '/../config/database.php';
 function getAdminMenu() {
     $menu = [
         ['type' => 'link', 'key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'fas fa-tachometer-alt', 'url' => '/admin/'],
+        ['type' => 'link', 'key' => 'my_portal', 'label' => 'My Website Plan', 'icon' => 'fas fa-gem', 'url' => '/admin/my-plan.php'],
         ['type' => 'separator'],
     ];
 
@@ -56,6 +57,7 @@ function getAdminMenu() {
             ['label' => 'Footer Design', 'url' => '/admin/theme-settings.php?tab=footer']
         ]],
         ['type' => 'link', 'key' => 'floating_cta', 'label' => 'Floating CTA', 'icon' => 'fas fa-comments', 'url' => '/admin/cta-buttons.php'],
+        ['type' => 'link', 'key' => 'billing', 'label' => 'Billing Portal', 'icon' => 'fas fa-credit-card', 'url' => '/admin/billing.php', 'is_admin_only' => true],
         ['type' => 'link', 'key' => 'custom_code', 'label' => 'Custom Code', 'icon' => 'fas fa-code', 'url' => '/admin/custom-code.php'],
         ['type' => 'link', 'key' => 'users', 'label' => 'Users', 'icon' => 'fas fa-users', 'url' => '/admin/users.php', 'is_admin_only' => true],
         ['type' => 'separator'],
@@ -133,6 +135,55 @@ function canEdit() {
     $role = $stmt->fetchColumn();
     
     return in_array($role, ['admin', 'editor']);
+}
+
+/**
+ * True if the user row has any module permissions (same rule as successful login to /admin/).
+ */
+function userRowHasAdminPermissions(array $userRow) {
+    $perms = json_decode($userRow['permissions'] ?? '[]', true);
+    return is_array($perms) && count($perms) > 0;
+}
+
+/**
+ * May load the admin shell: editor/admin OR at least one permission key (aligned with login.php).
+ */
+function canAccessAdminArea() {
+    if (!isLoggedIn()) return false;
+    $u = currentUser();
+    if (!$u) return false;
+    if (!empty($u['is_blocked'])) return false;
+    if (in_array($u['role'], ['admin', 'editor'], true)) return true;
+    return userRowHasAdminPermissions($u);
+}
+
+/**
+ * Admin layout gate: login, not blocked, and allowed to use /admin/ at all.
+ * Avoids redirect loop with login.php (do not send these users back to login.php).
+ */
+function requireAdminAreaAccess() {
+    requireLogin();
+    $u = currentUser();
+    if (!$u) {
+        setFlash('error', 'Please login to access this page.');
+        redirect(APP_URL . '/login.php');
+    }
+    if (!empty($u['is_blocked'])) {
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
+        session_destroy();
+        startSecureSession();
+        setFlash('error', 'Your account has been blocked. Contact admin.');
+        redirect(APP_URL . '/login.php');
+    }
+    $allowed = in_array($u['role'], ['admin', 'editor'], true) || userRowHasAdminPermissions($u);
+    if (!$allowed) {
+        setFlash('error', 'Access denied.');
+        redirect(APP_URL . '/');
+    }
 }
 
 function requireEditAccess() {
@@ -642,6 +693,44 @@ function getPostsByTag($slug, $limit = 9, $offset = 0) {
     ");
     $stmt->execute([$slug]);
     return $stmt->fetchAll();
+}
+
+// --- BILLING PLANS ---
+function getPlans() {
+    return db()->query("SELECT * FROM billing_plans ORDER BY price ASC")->fetchAll();
+}
+
+function getPlanById($id) {
+    $stmt = db()->prepare("SELECT * FROM billing_plans WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch();
+}
+
+function getPlanByUserId($userId) {
+    if (!$userId) return null;
+    $stmt = db()->prepare("
+        SELECT bp.* 
+        FROM billing_plans bp 
+        JOIN users u ON u.plan_id = bp.id 
+        WHERE u.id = ?
+    ");
+    $stmt->execute([$userId]);
+    return $stmt->fetch();
+}
+
+function updatePlan($id, $name, $price, $description, $features) {
+    $stmt = db()->prepare("UPDATE billing_plans SET name = ?, price = ?, description = ?, features = ? WHERE id = ?");
+    return $stmt->execute([$name, $price, $description, json_encode($features), $id]);
+}
+
+function createPlan($name, $price, $description, $features) {
+    $stmt = db()->prepare("INSERT INTO billing_plans (name, price, description, features) VALUES (?, ?, ?, ?)");
+    return $stmt->execute([$name, $price, $description, json_encode($features)]);
+}
+
+function assignPlanToUser($userId, $planId) {
+    $stmt = db()->prepare("UPDATE users SET plan_id = ? WHERE id = ?");
+    return $stmt->execute([$planId, $userId]);
 }
 
 // --- COMMENTS ---

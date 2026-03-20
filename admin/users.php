@@ -215,12 +215,13 @@ $users = getAllUsers();
         </div>
 
         <div class="modern-card no-padding overflow-hidden">
-            <table class="modern-table">
+            <table class="modern-table users-table">
                 <thead>
                     <tr>
                         <th style="width: 40px;"><input type="checkbox" id="check-all"></th>
                         <th>Name</th>
                         <th style="width: 150px;">Role</th>
+                        <th style="width: 180px;">Assigned Plan</th>
                         <th style="width: 120px;">Status</th>
                         <th style="width: 120px;">Date Joined</th>
                     </tr>
@@ -241,12 +242,13 @@ $users = getAllUsers();
                                 <div class="title-cell">
                                     <strong><?= h($user['name']) ?></strong>
                                     <small><?= h($user['email']) ?></small>
-                                    <div class="row-actions">
-                                        <a href="user-edit.php?id=<?= $user['id'] ?>" class="edit"><?= canEdit() ? 'Edit Comprehensive Details' : 'View Details' ?></a> 
-                                        <?php if (canEdit() && $user['id'] != $_currentUser['id']): ?>
-                                        | <a href="javascript:void(0)" onclick="if(confirm('Permanently delete this user?')) submitSingleAction(<?= $user['id'] ?>, 'delete')" class="trash">Delete</a>
-                                        <?php endif; ?>
-                                    </div>
+                                     <div class="row-actions posts-row-actions">
+                                         <span class="edit"><a href="user-edit.php?id=<?= $user['id'] ?>"><?= canEdit() ? 'Edit' : 'View' ?></a></span> 
+                                         <?php if (canEdit() && $user['id'] != $_currentUser['id']): ?>
+                                         <span class="row-actions-sep">|</span>
+                                         <span class="delete"><a href="javascript:void(0)" onclick="if(confirm('Permanently delete this user?')) submitSingleAction(<?= $user['id'] ?>, 'delete')" class="posts-row-action-btn--danger">Delete</a></span>
+                                         <?php endif; ?>
+                                     </div>
                                 </div>
                             </div>
                         </td>
@@ -255,6 +257,18 @@ $users = getAllUsers();
                                 <i class="fas <?= ($user['role'] === 'admin') ? 'fa-user-shield' : (($user['role'] === 'editor') ? 'fa-user-edit' : 'fa-user') ?>" style="margin-right: 5px;"></i>
                                 <?= ($user['role'] === 'admin') ? 'Administrator' : (($user['role'] === 'editor') ? 'Editor' : 'Subscriber') ?>
                             </div>
+                        </td>
+                        <td>
+                            <?php 
+                                $userPlan = getPlanByUserId($user['id']);
+                                if ($userPlan): ?>
+                                    <div class="user-plan-badge">
+                                        <i class="fas fa-gem" style="margin-right: 5px; color: #6366f1;"></i>
+                                        <?= h($userPlan['name']) ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted" style="font-size: 11px;">No active plan</span>
+                                <?php endif; ?>
                         </td>
                         <td>
                             <span class="status-badge status-<?= $user['is_blocked'] ? 'trash' : 'published' ?>">
@@ -312,17 +326,5 @@ document.getElementById('check-all') && document.getElementById('check-all').add
     checks.forEach(c => c.checked = this.checked);
 });
 </script>
-
-<style>
-.user-avatar-text {
-    width: 32px; height: 32px; border-radius: 4px; border: 1px solid #ccd0d4;
-    background: #f0f0f1; color: #2c3338;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 14px; margin-top: 2px;
-}
-.title-cell strong { font-size: 14px; color: #2271b1; display: block; margin-bottom: 2px; }
-.title-cell small { color: #646970; font-size: 12px; }
-.modern-table td { vertical-align: top; padding: 10px; }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

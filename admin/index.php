@@ -9,6 +9,7 @@ $totalUsers = countUsers();
 $totalPosts = countPosts();
 $totalComments = countComments();
 $recentPosts = getRecentPosts(5);
+$userPlan = getPlanByUserId($_currentUser['id']);
 ?>
 
 <div class="stats-grid">
@@ -22,6 +23,25 @@ $recentPosts = getRecentPosts(5);
         <div class="stat-card-value"><?= $totalUsers ?> Registered</div>
     </div>
 </div>
+
+<?php if ($userPlan): ?>
+<div class="mod-plan-banner animate-slide-up">
+    <div class="banner-glass">
+        <div class="banner-content">
+            <div class="banner-meta">
+                <span class="badge-premium"><i class="fas fa-gem"></i> My Active Plan</span>
+                <h2><?= h($userPlan['name']) ?></h2>
+                <p><?= truncate(h($userPlan['description']), 100) ?></p>
+            </div>
+            <div class="banner-right">
+                <div class="price-display">₹<?= number_format($userPlan['price'], 0) ?></div>
+                <a href="<?= APP_URL ?>/admin/my-plan.php" class="btn btn-plan-manage">Manage Plan</a>
+            </div>
+        </div>
+        <div class="banner-circle"></div>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="dashboard-grid">
     <div class="modern-card">

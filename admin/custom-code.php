@@ -112,8 +112,5 @@ document.addEventListener('keydown', function(e) {
 </script>
 <?php endif; ?>
 
-<style>
-.admin-card-header { padding: 12px 20px; font-weight: 600; color: #1d2327; border-bottom: 1px solid #f0f0f1; background: #fff; }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

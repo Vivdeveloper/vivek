@@ -149,8 +149,7 @@ endif; ?>
                         <th style="width: auto;">Title & Path</th>
                         <th style="width: 130px;">Design</th>
                         <th style="width: 100px;">Status</th>
-                        <th style="width: 110px;">Updated</th>
-                        <th width="150" style="text-align: right;">Actions</th>
+                        <th style="width: 120px; text-align: right; padding-right: 15px;">Updated</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -160,28 +159,31 @@ endif; ?>
                         <td><input type="checkbox" name="ids[]" value="<?= $p['id']?>" class="item-check"></td>
                         <td>
                             <div class="title-cell">
-                                <strong>
-                                    <?= h($p['title'])?>
-                                </strong>
+                                <strong><a href="<?= APP_URL?>/admin/page-edit.php?id=<?= $p['id']?>" class="category-title-link"><?= h($p['title'])?></a></strong>
                                 <small><code>/<?= h($p['slug'])?></code></small>
+                                <div class="row-actions posts-row-actions">
+                                    <?php if ($p['status'] === 'trash'): ?>
+                                    <span class="restore"><button type="submit" name="single_restore" value="<?= $p['id']?>" class="posts-row-action-btn">Restore</button></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="delete"><button type="submit" name="single_delete" value="<?= $p['id']?>" class="posts-row-action-btn posts-row-action-btn--danger" onclick="return confirm('PERMANENTLY DELETE this page?')">Delete Permanently</button></span>
+                                    <?php else: ?>
+                                    <span class="edit"><a href="<?= APP_URL?>/admin/page-edit.php?id=<?= $p['id']?>">Edit</a></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="view"><a href="<?= pageUrl($p['slug'], $p['id'])?>" target="_blank">View</a></span>
+                                    <span class="row-actions-sep">|</span>
+                                    <span class="trash"><button type="submit" name="single_trash" value="<?= $p['id']?>" class="posts-row-action-btn posts-row-action-btn--danger" onclick="return confirm('Move this page to Trash?')">Trash</button></span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </td>
                         <td>
                             <div class="design-badges">
                                 <?php if (!empty($p['custom_css'])): ?>
-                                <span class="design-badge css" title="Has Custom CSS"><i class="fas fa-code"></i>
-                                    CSS</span>
-                                <?php
-        endif; ?>
+                                <span class="design-badge css" title="Has Custom CSS"><i class="fas fa-code"></i> CSS</span>
+                                <?php endif; ?>
                                 <?php if (!empty($p['featured_image'])): ?>
-                                <span class="design-badge img" title="Has Featured Image"><i class="fas fa-image"></i>
-                                    Image</span>
-                                <?php
-        endif; ?>
-                                <?php if (empty($p['custom_css']) && empty($p['featured_image'])): ?>
-                                <small class="text-muted">Standard</small>
-                                <?php
-        endif; ?>
+                                <span class="design-badge img" title="Has Featured Image"><i class="fas fa-image"></i> Image</span>
+                                <?php endif; ?>
                             </div>
                         </td>
                         <td>
@@ -189,35 +191,8 @@ endif; ?>
                                 <?= strtoupper($p['status'])?>
                             </span>
                         </td>
-                        <td><small>
-                                <?= formatDate($p['updated_at'] ?? $p['created_at'])?>
-                            </small></td>
-                        <td style="text-align: right;">
-                            <div class="row-actions">
-                                <a href="<?= pageUrl($p['slug'], $p['id'])?>" class="action-btn" target="_blank"
-                                    title="View"><i class="fas fa-external-link-alt"></i></a>
-                                <?php if (canEdit()): ?>
-                                <?php if ($p['status'] === 'trash'): ?>
-                                <button type="submit" name="single_restore" value="<?= $p['id']?>"
-                                    class="action-btn restore" title="Restore to Draft"><i
-                                        class="fas fa-undo"></i></button>
-                                <button type="submit" name="single_delete" value="<?= $p['id']?>"
-                                    class="action-btn delete" title="Delete Permanently"
-                                    onclick="return confirm('PERMANENTLY DELETE this page?')"><i
-                                        class="fas fa-trash-alt"></i></button>
-                                <?php
-            else: ?>
-                                <a href="<?= APP_URL?>/admin/page-edit.php?id=<?= $p['id']?>" class="action-btn edit"
-                                    title="Edit"><i class="fas fa-pen"></i></a>
-                                <button type="submit" name="single_trash" value="<?= $p['id']?>"
-                                    class="action-btn trash" title="Move to Trash"
-                                    onclick="return confirm('Move this page to Trash?')"><i
-                                        class="fas fa-trash"></i></button>
-                                <?php
-            endif; ?>
-                                <?php
-        endif; ?>
-                            </div>
+                        <td style="text-align: right; padding-right: 15px;">
+                            <small class="text-muted"><?= formatDate($p['updated_at'] ?? $p['created_at'])?></small>
                         </td>
                     </tr>
                     <?php

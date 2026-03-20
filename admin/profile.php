@@ -134,10 +134,5 @@ function togglePassVisibility(inputId, icon) {
 }
 </script>
 
-<style>
-.profile-wrap { max-width: 1000px; }
-.form-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px; color: #1d2327; }
-.form-card { margin-top: 20px; }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

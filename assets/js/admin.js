@@ -2,6 +2,15 @@
  * VivekCMS - Admin Panel JavaScript
  */
 
+/** Match PHP slugify() in includes/functions.php */
+function adminSlugify(text) {
+    if (!text) return '';
+    let s = String(text).toLowerCase().trim();
+    s = s.replace(/[^a-z0-9\s-]/g, '');
+    s = s.replace(/[\s-]+/g, '-');
+    return s.replace(/^-+|-+$/g, '');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // --- Sidebar Toggle ---
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -39,6 +48,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+        // --- Go to Billing Portal Shortcut (Alt + B) ---
+        if (e.altKey && e.key.toLowerCase() === 'b') {
+            e.preventDefault();
+            window.location.href = window.APP_URL + '/admin/billing.php';
+        }
     });
 
     // --- Confirm delete actions ---
@@ -48,6 +62,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
             }
         });
+    });
+
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-slug-from-title]');
+        if (!btn) return;
+        var form = btn.closest('.admin-form');
+        if (!form) return;
+        var titleEl = form.querySelector('#title');
+        var slugEl = form.querySelector('#slug');
+        if (!titleEl || !slugEl) return;
+        slugEl.value = adminSlugify(titleEl.value);
+    });
+
+    document.addEventListener('change', function(e) {
+        if (!e.target.classList.contains('form-file-upload__input')) return;
+        var wrap = e.target.closest('.form-file-upload');
+        if (!wrap) return;
+        var nameEl = wrap.querySelector('.form-file-upload__name');
+        if (!nameEl) return;
+        var f = e.target.files && e.target.files[0];
+        nameEl.textContent = f ? f.name : '';
     });
 });
 
