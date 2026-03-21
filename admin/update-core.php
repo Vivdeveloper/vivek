@@ -106,34 +106,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_update'])) {
 
 $pageTitle = 'Core Update Wizard';
 require_once __DIR__ . '/includes/header.php';
+
+$updateData = checkForUpdates();
+$isUpdateAvailable = $updateData['available'] ?? false;
+$targetVersion = $updateData['version'] ?? 'Unknown';
+$changelog = $updateData['changelog'] ?? [];
+$message = $updateData['message'] ?? 'No new updates available.';
 ?>
 <div class="admin-page">
     <div class="admin-page-header">
-        <h2>One-Click Software Update</h2>
+        <h2>System Update Center</h2>
+        <p class="text-muted">Manage your CMS version, check for updates, and view version history.</p>
     </div>
 
-    <div class="admin-card" style="max-width: 600px; padding: 30px;">
-        <div style="text-align: center; font-size: 3rem; color: var(--vf-accent); margin-bottom: 20px;">
-            <i class="fas fa-satellite-dish"></i>
+    <div class="row">
+        <!-- Update Execution Panel -->
+        <div class="col-md-6">
+            <div class="admin-card" style="padding: 30px; border-top: 4px solid var(--wp-blue);">
+                <div style="font-size: 3rem; color: var(--wp-blue); margin-bottom: 20px;">
+                    <i class="fas fa-satellite-dish"></i>
+                </div>
+                <h3>Current Version: <span class="badge" style="background:#e2e8f0; color:#334155; padding:5px 10px; border-radius:20px; font-size:14px;"><?= h(APP_VERSION) ?></span></h3>
+                
+                <?php if ($isUpdateAvailable): ?>
+                    <h4 style="color: #4f46e5; margin: 20px 0 10px;">🚀 Update Ready: Version <?= h($targetVersion) ?></h4>
+                    <p style="color: var(--wp-text-secondary); font-size: 14px; margin-bottom: 30px; line-height:1.6;">
+                        <strong><?= h($message) ?></strong><br><br>
+                        This process securely downloads the newest code directly from your remote repository, 
+                        overwrites the core files, and automatically syncs the database. Your uploaded media and configs are safely preserved.
+                    </p>
+                    
+                    <form action="" method="POST">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="do_update" value="1">
+                        <button type="submit" class="btn btn-primary" style="padding: 12px 30px; font-size: 16px; border-radius: 5px; width:100%;" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Downloading payload... do not close window'; this.style.pointerEvents='none';">
+                            <i class="fas fa-cloud-download-alt"></i> Install Update Now
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div style="margin: 30px 0; padding: 20px; background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 4px;">
+                        <h4 style="color: #047857; margin-top:0;"><i class="fas fa-check-circle"></i> You are up to date!</h4>
+                        <p style="color: #065f46; margin-bottom:0; font-size:14px;">Your system is running the latest available version.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
-        <h3 style="text-align: center; margin-bottom: 15px;">Update Ready to Install</h3>
-        
-        <p style="color: var(--wp-text-secondary); text-align: center; font-size: 15px; margin-bottom: 30px;">
-            This process securely downloads the newest code directly from your remote repository, 
-            overwrites the core files, and automatically syncs the database.
-            <br><br>
-            <strong>Safe Actions:</strong> Your uploaded media, personal configs, and custom content are securely skipped during the overwrite.
-        </p>
-        
-        <form action="" method="POST" style="text-align: center;">
-            <?php csrfField(); ?>
-            <input type="hidden" name="do_update" value="1">
-            <button type="submit" class="btn btn-primary" style="padding: 12px 30px; font-size: 16px; border-radius: 5px;" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Downloading payload... do not close window'; this.style.pointerEvents='none';">
-                <i class="fas fa-cloud-download-alt"></i> Initialize Direct Update
-            </button>
-            <br><br>
-            <a href="<?= APP_URL ?>/admin/index.php" class="btn btn-outline">Cancel</a>
-        </form>
+
+        <!-- Version History Panel -->
+        <div class="col-md-6">
+            <div class="admin-card" style="padding: 30px;">
+                <h3 style="margin-bottom: 20px;"><i class="fas fa-history text-muted"></i> Version History (Changelog)</h3>
+                
+                <?php if (!empty($changelog)): ?>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        <?php foreach($changelog as $idx => $log): ?>
+                            <li style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="color: #4f46e5; margin-top: 3px;"><i class="fas fa-check"></i></div>
+                                <div style="color: #334155; font-size: 14px; line-height: 1.5;">
+                                    <?= h($log) ?>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php else: ?>
+                    <p class="text-muted">No changelog data available for this version.</p>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 </div>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

@@ -1095,9 +1095,8 @@ function checkForUpdates() {
     }
 
     if ($updateData && isset($updateData['version'])) {
-        if (version_compare($updateData['version'], APP_VERSION, '>')) {
-            return $updateData;
-        }
+        $updateData['available'] = version_compare($updateData['version'], APP_VERSION, '>');
+        return $updateData;
     }
     return null;
 }

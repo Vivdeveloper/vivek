@@ -17,7 +17,7 @@ $migrationNeeded = isMigrationNeeded();
 
 <!-- Update & Migration Alerts -->
 <div class="dashboard-alerts">
-    <?php if ($update): ?>
+    <?php if ($update && !empty($update['available'])): ?>
         <div class="alert alert-info">
             <div class="alert-icon"><i class="fas fa-sync-alt fa-spin"></i></div>
             <div class="alert-body">
