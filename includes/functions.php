@@ -820,12 +820,16 @@ function countUsers() {
 
 // --- PAGES ---
 function getPageBySlug($slug) {
-    $canSeeDrafts = canEdit();
-    $statusFilter = $canSeeDrafts ? "" : " AND status = 'published'";
-    
-    $stmt = db()->prepare("SELECT * FROM pages WHERE slug = ? " . $statusFilter);
-    $stmt->execute([$slug]);
-    return $stmt->fetch();
+    try {
+        $canSeeDrafts = canEdit();
+        $statusFilter = $canSeeDrafts ? "" : " AND status = 'published'";
+        
+        $stmt = db()->prepare("SELECT * FROM pages WHERE slug = ? " . $statusFilter);
+        $stmt->execute([$slug]);
+        return $stmt->fetch();
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 function getPageById($id) {
