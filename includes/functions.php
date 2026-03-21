@@ -205,8 +205,19 @@ function currentUser() {
         // Fetch fresh user data from DB to avoid staleness (e.g. role changes)
         $stmt = db()->prepare("SELECT id, name, email, role, is_blocked, permissions FROM users WHERE id = ?");
         $stmt->execute([$_SESSION['user_id']]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            // User was deleted or is missing, destroy session to prevent invalid state loop
+            $_SESSION = [];
+            session_destroy();
+            return null;
+        }
+        return $user;
     } catch (Throwable $e) {
+        // Database tables wiped out entirely (e.g. before install), destroy to prevent looping!
+        $_SESSION = [];
+        session_destroy();
         return null;
     }
 }
