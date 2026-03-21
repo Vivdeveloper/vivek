@@ -78,6 +78,53 @@ $allPagesList = db()->query("SELECT id, title FROM pages ORDER BY title")->fetch
 $activeTab = $_GET['tab'] ?? 'site';
 ?>
 
+<style>
+/* Modern Theme Settings UI */
+.filter-tabs-container {
+    background: #fff !important;
+    padding: 0 20px 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+.filter-tabs {
+    display: flex; gap: 24px;
+}
+.filter-tab {
+    padding: 16px 4px; cursor: pointer; color: #64748b !important; font-weight: 500; font-size: 14px; position: relative;
+    border-bottom: 2px solid transparent !important; transition: all 0.2s;
+    text-transform: none !important;
+}
+.filter-tab:hover { color: #0f172a !important; }
+.filter-tab.active { color: #4f46e5 !important; border-bottom: 2px solid #4f46e5 !important; font-weight: 600; }
+.filter-tab::after { display: none !important; }
+
+/* Setting Layout */
+.wp-setting-row { padding: 25px 0; display:flex; gap:30px; border-bottom: 1px solid #f1f5f9; }
+.wp-setting-row:last-child { border-bottom: none; }
+.wp-divider { display: none; }
+.wp-label-col { width: 30%; max-width: 300px; font-weight: 600; color: #1e293b; }
+.wp-label-col small.text-muted { display:block; margin-top:8px; font-weight: 400; color: #64748b; font-size: 13px; line-height:1.4; }
+.wp-input-col { flex: 1; }
+
+/* Input Sizing */
+.wp-input-col input[type="text"], .wp-input-col input[type="email"], .wp-input-col select, .wp-input-col textarea {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    font-size: 14px; color: #334155;
+    background: #fff; transition: border-color 0.2s;
+}
+.wp-input-col input:focus, .wp-input-col textarea:focus { border-color: #4f46e5; outline:none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+/* Image Pickers */
+.image-setting-preview { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc; display: flex; gap: 20px; align-items: center; width:fit-content; }
+.preview-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 15px; min-width: 120px; min-height: 80px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; }
+.control-box button { background: white; margin-right: 10px; }
+.control-box small { font-family: monospace; }
+</style>
+
 <div class="row">
     <div class="col-md-12">
         <form method="POST" class="admin-form" enctype="multipart/form-data">

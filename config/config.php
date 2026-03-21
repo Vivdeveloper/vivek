@@ -18,13 +18,13 @@ define('DB_CHARSET', 'utf8mb4');
 // ============================================
 // define('APP_NAME', 'VivFramework'); // Now dynamic in includes/functions.php
 define('APP_URL', 'http://localhost:9000'); // Change to your domain: https://yourdomain.com
-define('APP_VERSION', '0.9.0');
+define('APP_VERSION', '1.0.2');
 
 // ============================================
 // 📁 PATH SETTINGS
 // ============================================
 define('BASE_PATH', dirname(__DIR__));
-define('VIVEK_UPDATE_URL', BASE_PATH . '/version.json');
+define('VIVEK_UPDATE_URL', 'https://raw.githubusercontent.com/Vivdeveloper/vivek/main/version.json');
 define('UPLOAD_PATH', BASE_PATH . '/assets/uploads/');
 define('UPLOAD_URL', APP_URL . '/assets/uploads/');
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB

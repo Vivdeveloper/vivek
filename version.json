@@ -1,10 +1,12 @@
 {
-    "version": "1.0.1",
-    "message": "Security Fixes & Performance Improvements",
+    "version": "1.0.2",
+    "message": "Major CMS Update! Including new One-Click Installer, Theme Settings UI overhaul, and security fixes.",
     "changelog": [
-        "Fixed 500 error in posts list",
-        "Updated installer with multi-step support",
-        "Added SEO and custom column support"
+        "Added robust One-Click Update Wizard directly in the Admin Panel.",
+        "Overhauled the Theme Settings user interface to look elegant and responsive.",
+        "Fixed critical permission errors relating to missing database columns.",
+        "Resolved bugs with the install.php and run_migration.php scripts.",
+        "Implemented database safety logic to prevent dashboard crashes during upgrades."
     ],
     "date": "2026-03-22"
 }
