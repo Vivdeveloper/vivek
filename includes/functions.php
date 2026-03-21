@@ -1062,3 +1062,49 @@ function renderFloatingCTA() {
     </div>
     <?php
 }
+
+// ============================================
+// 🔄 CMS UPDATE & VERSIONING
+// ============================================
+
+function checkForUpdates() {
+    if (!defined('VIVEK_UPDATE_URL')) return null;
+
+    $cacheFile = BASE_PATH . '/tmp/update_check.json';
+    if (!is_dir(BASE_PATH . '/tmp')) mkdir(BASE_PATH . '/tmp', 0755, true);
+
+    if (is_file($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
+        $updateData = json_decode(file_get_contents($cacheFile), true);
+    } else {
+        $context = stream_context_create(['http' => ['timeout' => 3]]);
+        $remoteJson = @file_get_contents(VIVEK_UPDATE_URL, false, $context);
+        if (!$remoteJson) return null;
+        
+        $updateData = json_decode($remoteJson, true);
+        if ($updateData) {
+            file_put_contents($cacheFile, json_encode($updateData));
+        }
+    }
+
+    if ($updateData && isset($updateData['version'])) {
+        if (version_compare($updateData['version'], APP_VERSION, '>')) {
+            return $updateData;
+        }
+    }
+    return null;
+}
+
+function isMigrationNeeded() {
+    try {
+        $db = db();
+        $colsPosts = $db->query("SHOW COLUMNS FROM posts LIKE 'post_type'")->fetch();
+        $colsPages = $db->query("SHOW COLUMNS FROM pages LIKE 'template'")->fetch();
+        if (!$colsPosts || !$colsPages) return true;
+        
+        $seoCheck = $db->query("SHOW COLUMNS FROM posts LIKE 'meta_title'")->fetch();
+        if (!$seoCheck) return true;
+        return false;
+    } catch (Throwable $e) {
+        return true;
+    }
+}

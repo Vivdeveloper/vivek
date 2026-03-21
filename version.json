@@ -1,0 +1,10 @@
+{
+    "version": "1.0.1",
+    "message": "Security Fixes & Performance Improvements",
+    "changelog": [
+        "Fixed 500 error in posts list",
+        "Updated installer with multi-step support",
+        "Added SEO and custom column support"
+    ],
+    "date": "2026-03-22"
+}

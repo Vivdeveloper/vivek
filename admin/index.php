@@ -10,7 +10,36 @@ $totalPosts = countPosts();
 $totalComments = countComments();
 $recentPosts = getRecentPosts(5);
 $userPlan = getPlanByUserId($_currentUser['id']);
+
+$update = checkForUpdates();
+$migrationNeeded = isMigrationNeeded();
 ?>
+
+<!-- Update & Migration Alerts -->
+<div class="dashboard-alerts">
+    <?php if ($update): ?>
+        <div class="alert alert-info">
+            <div class="alert-icon"><i class="fas fa-sync-alt fa-spin"></i></div>
+            <div class="alert-body">
+                <strong>Update available: Version <?= h($update['version']) ?></strong>
+                <p><?= h($update['message'] ?? 'New features and security fixes are ready.') ?></p>
+            </div>
+            <a href="<?= APP_URL ?>/admin/update-core.php" class="btn btn-sm btn-primary">Update Now</a>
+            <a href="https://github.com/Vivdeveloper/vivek" target="_blank" class="btn btn-sm btn-outline">Review Update</a>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($migrationNeeded): ?>
+        <div class="alert alert-warning">
+            <div class="alert-icon"><i class="fas fa-database"></i></div>
+            <div class="alert-body">
+                <strong>Database Sync Required</strong>
+                <p>New columns are missing in your tables. Please run the migration to avoid 500 errors.</p>
+            </div>
+            <a href="<?= APP_URL ?>/run_migration.php" class="btn btn-sm btn-primary">Run Sync Now</a>
+        </div>
+    <?php endif; ?>
+</div>
 
 <div class="stats-grid">
     <div class="stat-card">
