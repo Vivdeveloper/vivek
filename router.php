@@ -68,9 +68,17 @@ $postQuery = "SELECT p.id, p.slug, c.slug as cat_slug
               FROM posts p 
               LEFT JOIN categories c ON p.category_id = c.id 
               WHERE p.slug = ? " . $statusFilter;
-$postStmt = db()->prepare($postQuery);
-$postStmt->execute([$slug]);
-$foundPost = $postStmt->fetch();
+$foundPost = false;
+try {
+    $postStmt = db()->prepare($postQuery);
+    $postStmt->execute([$slug]);
+    $foundPost = $postStmt->fetch();
+} catch (Throwable $e) {
+    if (strpos($e->getMessage(), 'Table') !== false) {
+        header("Location: " . APP_URL . "/install.php");
+        exit;
+    }
+}
 
 if ($foundPost) {
     $structure = getSetting('permalink_structure', 'post_name');
@@ -97,13 +105,15 @@ if ($foundPost) {
 // 2. Try to find a CMS page with this slug
 // Only check if it's a one-level URL (/about) as our pages aren't hierarchical yet
 if (!$catSlug) {
-    $foundPage = db()->prepare("SELECT id FROM pages WHERE slug = ? " . ($statusFilter ? " AND status = 'published'" : ""));
-    $foundPage->execute([$slug]);
-    if ($foundPage->fetch()) {
-        $_GET['slug'] = $slug;
-        require __DIR__ . '/page.php';
-        exit;
-    }
+    try {
+        $foundPage = db()->prepare("SELECT id FROM pages WHERE slug = ? " . ($statusFilter ? " AND status = 'published'" : ""));
+        $foundPage->execute([$slug]);
+        if ($foundPage->fetch()) {
+            $_GET['slug'] = $slug;
+            require __DIR__ . '/page.php';
+            exit;
+        }
+    } catch (Throwable $e) {}
 }
 
 // 3. Nothing found → 404

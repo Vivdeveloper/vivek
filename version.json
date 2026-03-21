@@ -1,7 +1,9 @@
 {
-    "version": "1.0.6",
-    "message": "Major CMS Update & Auto-Repair Fail-Safe",
+    "version": "1.0.9",
+    "message": "Major CMS Update & Error Resilience System",
     "changelog": [
+        "Fixed critical PDOException where an active user session crashes if the Hostinger `users` database is deleted or missing.",
+        "Fixed fatal crash when accessing the site root before DB initialisation by gracefully catching missing tables and intelligently redirecting to the installer.",
         "Implemented catastrophic rollback engine to auto-repair the CMS if an update ever fails mid-installation.",
         "Fixed critical Updater bug where files copied on Hostinger caused a 404 error due to missing CHMOD 0644 read permissions.",
         "Strict fallback validation for Theme Settings Tabs.",

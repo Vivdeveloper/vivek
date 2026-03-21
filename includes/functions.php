@@ -201,10 +201,14 @@ function requireEditAccess() {
 function currentUser() {
     if (!isLoggedIn()) return null;
     
-    // Fetch fresh user data from DB to avoid staleness (e.g. role changes)
-    $stmt = db()->prepare("SELECT id, name, email, role, is_blocked, permissions FROM users WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
+    try {
+        // Fetch fresh user data from DB to avoid staleness (e.g. role changes)
+        $stmt = db()->prepare("SELECT id, name, email, role, is_blocked, permissions FROM users WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 function requireLogin() {
