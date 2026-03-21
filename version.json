@@ -1,7 +1,8 @@
 {
-    "version": "1.0.4",
-    "message": "Major CMS Update & UI Fixes",
+    "version": "1.0.5",
+    "message": "Critical Bug Fix: Server File Permissions",
     "changelog": [
+        "Fixed critical Updater bug where files copied on Hostinger caused a 404 error due to missing CHMOD 0644 read permissions.",
         "Strict fallback validation for Theme Settings Tabs.",
         "Fixed Theme Settings navigation tabs stacking issue.",
         "Added robust One-Click Update Wizard directly in the Admin Panel.",

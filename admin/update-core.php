@@ -53,7 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_update'])) {
             // Recursive Copy Function
             function rcopy($src, $dst) {
                 if (is_dir($src)) {
-                    if (!is_dir($dst)) mkdir($dst, 0755, true);
+                    if (!is_dir($dst)) {
+                        mkdir($dst, 0755, true);
+                        @chmod($dst, 0755);
+                    }
                     $files = scandir($src);
                     foreach ($files as $file) {
                         if ($file != "." && $file != "..") {
@@ -67,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_update'])) {
                     }
                 } else if (file_exists($src)) {
                     copy($src, $dst);
+                    @chmod($dst, 0644); // Fix for Hostinger missing permissions
                 }
             }
             
