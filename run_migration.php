@@ -4,7 +4,23 @@ require_once __DIR__ . '/includes/functions.php';
 try {
     $db = db();
     
-    // 1. Create custom_post_types table
+    // 0. Core columns missing from users table
+    if (!$db->query("SHOW COLUMNS FROM users LIKE 'permissions'")->fetch()) {
+        $db->exec("ALTER TABLE users ADD COLUMN permissions TEXT NULL");
+    }
+    if (!$db->query("SHOW COLUMNS FROM users LIKE 'plan_id'")->fetch()) {
+        $db->exec("ALTER TABLE users ADD COLUMN plan_id INT NULL");
+    }
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS billing_plans (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            price DECIMAL(12,2) DEFAULT 0,
+            description TEXT,
+            features TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
     $db->exec("
         CREATE TABLE IF NOT EXISTS custom_post_types (
             id INT AUTO_INCREMENT PRIMARY KEY,

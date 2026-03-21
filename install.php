@@ -37,6 +37,8 @@ if (isset($_POST['install'])) {
                 role ENUM('admin', 'editor', 'user') DEFAULT 'user',
                 avatar VARCHAR(255),
                 is_blocked TINYINT DEFAULT 0,
+                permissions TEXT NULL,
+                plan_id INT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
@@ -268,7 +270,7 @@ if (isset($_POST['install'])) {
                 <p>🔗 <a href="<?= APP_URL ?>/">Visit Website</a></p>
                 <p>🔗 <a href="<?= APP_URL ?>/admin/">Admin Panel</a></p>
                 <p style="margin-top: 10px; font-size: 13px; color: #94a3b8;">
-                    Admin: <?= h($_POST['admin_email'] ?? 'admin@example.com') ?> / <?= h($_POST['admin_password'] ?? 'admin123') ?>
+                    Admin: <?= htmlspecialchars($_POST['admin_email'] ?? 'admin@example.com') ?> / <?= htmlspecialchars($_POST['admin_password'] ?? 'admin123') ?>
                 </p>
             </div>
             <div class="warning">

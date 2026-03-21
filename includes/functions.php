@@ -22,7 +22,11 @@ function getAdminMenu() {
 
     // Dynamic Post Types Injection based on Database
     // We treat 'post' as a special reserved type for the main blog
-    $post_types = db()->query("SELECT * FROM custom_post_types ORDER BY name ASC")->fetchAll();
+    try {
+        $post_types = db()->query("SELECT * FROM custom_post_types ORDER BY name ASC")->fetchAll();
+    } catch (PDOException $e) {
+        $post_types = [];
+    }
     
     // Always include the standard 'post' type if it exists in the core logic
     // Usually the 'post' type is the first one
@@ -708,14 +712,18 @@ function getPlanById($id) {
 
 function getPlanByUserId($userId) {
     if (!$userId) return null;
-    $stmt = db()->prepare("
-        SELECT bp.* 
-        FROM billing_plans bp 
-        JOIN users u ON u.plan_id = bp.id 
-        WHERE u.id = ?
-    ");
-    $stmt->execute([$userId]);
-    return $stmt->fetch();
+    try {
+        $stmt = db()->prepare("
+            SELECT bp.* 
+            FROM billing_plans bp 
+            JOIN users u ON u.plan_id = bp.id 
+            WHERE u.id = ?
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        return null;
+    }
 }
 
 function updatePlan($id, $name, $price, $description, $features) {
