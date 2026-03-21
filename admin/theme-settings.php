@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verifyCsrf()) {
     redirect(APP_URL . '/admin/theme-settings.php' . ($_GET['tab'] ? '?tab=' . $_GET['tab'] : ''));
 }
 
-$activeTab = $_GET['tab'] ?? 'site';
+$validTabs = ['site', 'header', 'footer', 'homepage'];
+$activeTab = (!empty($_GET['tab']) && in_array(trim($_GET['tab']), $validTabs)) ? trim($_GET['tab']) : 'site';
 $pageTitle = 'Theme Setting';
 require_once __DIR__ . '/includes/header.php';
 
@@ -75,7 +76,8 @@ $settings = [
 ];
 $allPagesList = db()->query("SELECT id, title FROM pages ORDER BY title")->fetchAll();
 
-$activeTab = $_GET['tab'] ?? 'site';
+$validTabs = ['site', 'header', 'footer', 'homepage'];
+$activeTab = (!empty($_GET['tab']) && in_array(trim($_GET['tab']), $validTabs)) ? trim($_GET['tab']) : 'site';
 ?>
 
 <style>
