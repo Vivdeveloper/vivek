@@ -123,6 +123,11 @@ $activeTab = $_GET['tab'] ?? 'site';
 .preview-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 15px; min-width: 120px; min-height: 80px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; }
 .control-box button { background: white; margin-right: 10px; }
 .control-box small { font-family: monospace; }
+
+/* Tab Content Visibility */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeInTab 0.3s ease; }
+@keyframes fadeInTab { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 <div class="row">

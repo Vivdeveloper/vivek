@@ -1,7 +1,8 @@
 {
-    "version": "1.0.2",
-    "message": "Major CMS Update! Including new One-Click Installer, Theme Settings UI overhaul, and security fixes.",
+    "version": "1.0.3",
+    "message": "Major CMS Update & UI Fixes",
     "changelog": [
+        "Fixed Theme Settings navigation tabs stacking issue.",
         "Added robust One-Click Update Wizard directly in the Admin Panel.",
         "Overhauled the Theme Settings user interface to look elegant and responsive.",
         "Fixed critical permission errors relating to missing database columns.",
