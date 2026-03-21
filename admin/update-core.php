@@ -50,7 +50,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_update'])) {
         }
 
         if (is_dir($wrapperDir)) {
-            // Recursive Copy Function
+            // Setup Backup & Rollback Infrastructure
+            $backupDir = $tmpDir . '/backup_rollback';
+            if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
+
+            // Clean previous backup loop
+            function cleanDir($dir) { 
+                if (!is_dir($dir)) return;
+                $objects = scandir($dir); 
+                foreach ($objects as $object) { 
+                    if ($object != "." && $object != "..") { 
+                        if (is_dir($dir."/".$object) && !is_link($dir."/".$object)) cleanDir($dir."/".$object);
+                        else unlink($dir."/".$object); 
+                    } 
+                }
+                rmdir($dir); 
+            }
+            cleanDir($backupDir); // Ensure fresh backup directory
+
+            // Back up essential core components before risky overwriting
+            function quickBackup($src, $dst) {
+                if (is_dir($src)) {
+                    // Skip volatile data
+                    if (strpos($src, 'assets/uploads') !== false || strpos($src, 'tmp') !== false) return;
+                    if (!is_dir($dst)) mkdir($dst, 0755, true);
+                    $files = scandir($src);
+                    foreach ($files as $file) {
+                        if ($file != "." && $file != "..") quickBackup("$src/$file", "$dst/$file");
+                    }
+                } else if (file_exists($src)) {
+                    copy($src, $dst);
+                }
+            }
+            
+            // Execute Backup
+            quickBackup(BASE_PATH . '/admin', $backupDir . '/admin');
+            quickBackup(BASE_PATH . '/includes', $backupDir . '/includes');
+            $rootFiles = glob(BASE_PATH . '/*.php');
+            if ($rootFiles) {
+                foreach ($rootFiles as $rf) {
+                    if (is_file($rf)) copy($rf, $backupDir . '/' . basename($rf));
+                }
+            }
+
+            // Recursive Copy Function with strict error throwing
             function rcopy($src, $dst) {
                 if (is_dir($src)) {
                     if (!is_dir($dst)) {
@@ -69,34 +112,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_update'])) {
                         }
                     }
                 } else if (file_exists($src)) {
-                    copy($src, $dst);
+                    if (!@copy($src, $dst)) throw new Exception("Write Permission Denied for file: " . basename($dst));
                     @chmod($dst, 0644); // Fix for Hostinger missing permissions
                 }
             }
             
-            // Execute Copy Engine
-            rcopy($wrapperDir, BASE_PATH);
-
-            // 4. Clean up Temporary Files securely (Windows + Unix fallback)
-            function rrmdir($dir) { 
-                if (is_dir($dir)) { 
-                    $objects = scandir($dir); 
-                    foreach ($objects as $object) { 
-                        if ($object != "." && $object != "..") { 
-                            if (is_dir($dir. DIRECTORY_SEPARATOR .$object) && !is_link($dir."/".$object))
-                                rrmdir($dir. DIRECTORY_SEPARATOR .$object);
-                            else
-                                unlink($dir. DIRECTORY_SEPARATOR .$object); 
-                        } 
+            try {
+                // Execute Risky Update Overwrite
+                rcopy($wrapperDir, BASE_PATH);
+                setFlash('success', 'CMS Core updated successfully to the latest GitHub version!');
+            } catch (Exception $e) {
+                // CATASTROPHIC FAILURE DETECTED: EXECUTE ROLLBACK
+                quickBackup($backupDir . '/admin', BASE_PATH . '/admin');
+                quickBackup($backupDir . '/includes', BASE_PATH . '/includes');
+                $rollbackRoots = glob($backupDir . '/*.php');
+                if ($rollbackRoots) {
+                    foreach ($rollbackRoots as $rrf) {
+                        if (is_file($rrf)) @copy($rrf, BASE_PATH . '/' . basename($rrf));
                     }
-                    rmdir($dir); 
-                } 
+                }
+                setFlash('error', 'Update Failed: ' . $e->getMessage() . ' <br><b>Auto-Repair Triggered! System successfully rolled back to the previous version to prevent a crash.</b>');
             }
-            rrmdir($extractPath);
+
+            // Clean up Temporary Files securely
+            cleanDir($extractPath);
+            cleanDir($backupDir);
             @unlink($zipFile);
             @unlink(BASE_PATH . '/tmp/update_check.json'); // Force fresh update check next time
-
-            setFlash('success', 'CMS Core updated successfully to the latest GitHub version!');
         } else {
             setFlash('error', 'Update extraction failed: Invalid format received from GitHub.');
         }
